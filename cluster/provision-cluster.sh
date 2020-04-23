@@ -140,12 +140,14 @@ export IMAGE_ID=ami-0b199ce4c7f1a6dd2
 export WIN_IMAGE_ID=ami-001589977a146ef31
 # Windows 1903 core with Containers
 export WIN1903_IMAGE_ID=ami-060a4b0c07c89ef0d
-# Windows 1909 core base with Containers
-export WIN1909_IMAGE_ID=ami-0c7f9668831d801cd
+# Windows 1909 core with Containers
+export WIN1909_IMAGE_ID=ami-028cdf199fb6c2daf
+# Windows 1909 core base
+# export WIN1909_IMAGE_ID=ami-0c7f9668831d801cd
 # Windows 1909 core with Containers
 # export WIN1909_IMAGE_ID=ami-028cdf199fb6c2daf
 # VM disk config
-DISK_CONFIG='DeviceName=/dev/sda1,Ebs={VolumeSize=20,DeleteOnTermination=true}'
+DISK_CONFIG='DeviceName=/dev/sda1,Ebs={VolumeSize=35,DeleteOnTermination=true}'
 WIN_DISK_CONFIG='DeviceName=/dev/sda1,Ebs={VolumeSize=60,DeleteOnTermination=true}'
 #############################################
 # save objects info
@@ -247,11 +249,11 @@ echo -e "$W2 :\t\t$W2IP"
 echo -e "$W3 :\t\t$W3IP"
 echo "# IAM roles, instance profiles, policies"
 echo -e "master role:\t\t\t$IAM_ROLE_MASTER"
-echo -e "master instance profile:\t\t\t$IAM_PROFILE_MASTER"
-echo -e "master role policy:\t\t\t$OWNER-k8s-master-policy"
+echo -e "master instance profile:\t$IAM_PROFILE_MASTER"
+echo -e "master role policy:\t\t$OWNER-k8s-master-policy"
 echo -e "worker role:\t\t\t$IAM_ROLE_WORKER"
-echo -e "worker instance profile:\t\t\t$IAM_PROFILE_WORKER"
-echo -e "worker role policy:\t\t\t$OWNER-k8s-worker-policy"
+echo -e "worker instance profile:\t$IAM_PROFILE_WORKER"
+echo -e "worker role policy:\t\t$OWNER-k8s-worker-policy"
 #######################
 # build clean up script
 #######################

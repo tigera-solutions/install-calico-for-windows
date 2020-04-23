@@ -30,6 +30,7 @@ chmod +x provision-cluster.sh
 MASTER0_IP='xx.xx.xx.xx' # set master node public IP
 WORKER1_IP='xx.xx.xx.xx' # set linux worker node public IP
 SSH_KEY='./path/to/ssh_key'
+cmhod 0600 $SSH_KEY
 ssh -i $SSH_KEY -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@$MASTER0_IP
 # copy kubeadm example config
 sudo cp /root/kubeadm/kubeadm-config.yaml ./
