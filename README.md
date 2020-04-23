@@ -1,15 +1,17 @@
 # Getting up and running with Calico for Windows
 
-High level tasks to install Calico for Windows
+In this guide words `node` and `host` are interchangeable.
+
+## High level tasks to install Calico for Windows
 
 - provision two Ubuntu instances: one for k8s master, and one for k8s worker
-- provision one or two Windows instances. For example, Windows 1903 and Windows 1909 with Containers installed
-- prepare Ubuntu instances for k8s installation with kubeadm
-- use kubeadm to install k8s Ubuntu instances
-- install Calico OS v3.13
+- provision one or two Windows instances. For example, `Windows 1903` and `Windows 1909` with Containers feature installed
+- prepare Ubuntu instances for k8s installation
+- use `kubeadm` to install k8s Ubuntu instances
+- [install Calico](https://docs.projectcalico.org/getting-started/kubernetes/quickstart) OS v3.13.x
 - prepare Windows nodes to be joined to k8s cluster
-- use Calico for Windows v3.12.1 to install Calico for Windows and joined the nodes to the cluster
-- create a test policy and confirm that it's working
+- use `Calico for Windows` v3.12.1 to install Calico on Windows nodes and join the nodes to k8s cluster
+- test connectivity between Linux and Windows pods
 
 ## provision cluster infrastructure
 
@@ -173,30 +175,31 @@ mkdir c:\k\cni\config
 cd $HOME\Downloads
 # get kube v1.18.2 binaries
 $KubernetesVersion='v1.18.2'
+# download archived version that contains all node binaries
+iwr -usebasicparsing -outfile kubernetes-node-windows-amd64.tar.gz -uri https://dl.k8s.io/v1.18.2/kubernetes-node-windows-amd64.tar.gz
+# extract kube components
+tar.exe -xf kubernetes-node-windows-amd64.tar.gz
+# or download node binaries one by one
 iwr -usebasicparsing -outfile kubelet.exe -uri https://dl.k8s.io/$KubernetesVersion/bin/windows/amd64/kubelet.exe
 iwr -usebasicparsing -outfile kube-proxy.exe -uri https://dl.k8s.io/$KubernetesVersion/bin/windows/amd64/kube-proxy.exe
 iwr -usebasicparsing -outfile kubectl.exe -uri https://dl.k8s.io/$KubernetesVersion/bin/windows/amd64/kubectl.exe
 iwr -usebasicparsing -outfile kubeadm.exe -uri https://dl.k8s.io/$KubernetesVersion/bin/windows/amd64/kubeadm.exe
-# or download archived version that contains all node binaries
-# iwr -usebasicparsing -outfile kubernetes-client-windows-amd64.tar.gz -uri https://dl.k8s.io/v1.18.2/kubernetes-client-windows-amd64.tar.gz
-iwr -usebasicparsing -outfile kubernetes-node-windows-amd64.tar.gz -uri https://dl.k8s.io/v1.18.2/kubernetes-node-windows-amd64.tar.gz
-# extract kube components
-tar.exe -xf kubernetes-node-windows-amd64.tar.gz
 # copy kube components to c:\k path
 cp .\kubernetes\node\bin\*.exe c:\k
 # get kubeconfig from the master node and copy it into c:\k\config path
 # NOTE: make sure to save .\config file without any extension
 notepad.exe c:\k\config
 # set KUBECONFIG env var and test cluster connection
-$env:KUBECONFIG="$($(pwd).Path)\config"
+$env:KUBECONFIG="c:\k\config"
 cd c:\k
 Set-Alias -Name kubectl -Value "c:\k\kubectl.exe"
 kubectl version
 kubectl get nodes
 # download CNI plugins
-iwr -usebasicparsing -outfile c:\k\cni\flannel.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/flannel.exe
-iwr -usebasicparsing -outfile c:\k\cni\win-bridge.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/win-bridge.exe
-iwr -usebasicparsing -outfile c:\k\cni\host-local.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
+$CNI_DIR='c:\k\cni'
+iwr -usebasicparsing -outfile $CNI_DIR\flannel.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/flannel.exe
+iwr -usebasicparsing -outfile $CNI_DIR\win-bridge.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/win-bridge.exe
+iwr -usebasicparsing -outfile $CNI_DIR\host-local.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
 ```
 
 ### configure `kubelet` components
@@ -221,21 +224,21 @@ notepad.exe C:\TigeraCalico\kubernetes\start-kubelet.ps1
 
 ### configure `kube-proxy` component
 
-The `kube-proxy` reads the HNS network name from an environment variable `K​UBE_NETWORK`.
+The `kube-proxy` reads the `HNS` network name from an environment variable `K​UBE_NETWORK`.
 With default configuration Calico uses network name `Calico` and flannel uses network name `cbr0`.
 
 ## install Calico on Windows nodes
 
 Edit the file `​C:\TigeraCalico\config.ps1​` as follows:
 
-- Set `$env:KUBE_NETWORK​` to match the CNI plugin you plan to use. For Calico, set the variable to "Calico.*", for flannel host gateway it is typically "cbr0".
-- Set `$env:CALICO_NETWORKING_BACKEND​` to "windows-bgp", "vxlan", or, "none" (if using a non-Calico CNI plugin).
-- Set the ​`$env:CNI_` ​variables to match the location of your Kubernetes installation.
-- Set `$env:K8S_SERVICE_CIDR​` to match your Kubernetes service cluster IP CIDR.
-- Set `$env:CALICO_DATASTORE_TYPE​` to the Calico datastore you want to use. Note: "etcdv3" can only be used with Calico BGP networking. When using flannel or another networking provider, the Kubernetes API Datastore must be used.
-- Set `$env:KUBECONFIG​` to the location of the kubeconfig file Calico should use to access the Kubernetes API server.
-- If using etcd as the datastore, set the `$env:ETCD_​` parameters accordingly. ​Note: due to a limitation of the Windows dataplane, a Kubernetes service ClusterIP cannot be used for the etcd endpoint (the host compartment cannot reach Kubernetes services).
-- Set `$env:NODENAME​` to match the hostname used by kubelet. The default is to use the node's hostname.
+- Set `$env:KUBE_NETWORK​` to match the CNI plugin you plan to use. For Calico, set the variable to `"Calico.*"`, for flannel host gateway it is typically `"cbr0"`.
+- Set `$env:CALICO_NETWORKING_BACKEND​` to `"windows-bgp"`, `"vxlan"`, or `"none"` (if using a non-Calico CNI plugin).
+- Set the ​`$env:CNI_` ​variables to match the location of your `Kubernetes` installation.
+- Set `$env:K8S_SERVICE_CIDR​` to match your `Kubernetes` service cluster IP CIDR.
+- Set `$env:CALICO_DATASTORE_TYPE​` to the Calico datastore you want to use. Note: `"etcdv3"` can only be used with Calico BGP networking. When using flannel or another networking provider, the `Kubernetes` API Datastore must be used.
+- Set `$env:KUBECONFIG​` to the location of the `kubeconfig` file Calico should use to access the `Kubernetes` API server.
+- If using `etcd` as the datastore, set the `$env:ETCD_​` parameters accordingly. ​Note: due to a limitation of the Windows dataplane, a `Kubernetes` service `ClusterIP` cannot be used for the `etcd` endpoint (the host compartment cannot reach `Kubernetes` services).
+- Set `$env:NODENAME​` to match the hostname used by `kubelet`. The default is to use the node's hostname.
 
 Start `kubelet`, `kube-proxy` and install `calico`
 
