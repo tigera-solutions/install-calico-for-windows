@@ -1,8 +1,8 @@
 # Getting up and running with Calico for Windows
 
-In this guide words `node` and `host` are interchangeable.
+In this guide words `node` and `host` are interchangeable. If you are interested and want to test-drive `Calico for Windows`, please [reach out to us](https://www.tigera.io/contact/). We will be happy to share the trial version of the product with you.
 
-## High level tasks to install Calico for Windows
+## high level tasks to install Calico for Windows
 
 - provision two Ubuntu instances: one for k8s master, and one for k8s worker
 - provision one or two Windows instances. For example, `Windows 1903` and `Windows 1909` with Containers feature installed
@@ -336,9 +336,9 @@ Resolve-DnsName -Name nginx-svc
 iwr -UseBasicParsing http://nginx-svc
 ```
 
-## Troubleshooting
+## troubleshooting
 
-### Missing AWS metadata route
+### missing AWS metadata route
 
 Sometimes AWS metadata route can be removed when Calico gets installed. If there are applications that rely on AWS metadata route, add it to the routing table.
 
@@ -352,7 +352,7 @@ $IfaceIndex='x' # use index number from Get-NetAdapter output
 New-NetRoute -DestinationPrefix 169.254.169.254/32 -InterfaceIndex $IfaceIndex
 ```
 
-### Containers get stuck in `CreatingContainer` state
+### containers get stuck in `CreatingContainer` state
 
 If some configuration settings were not set correctly, you may see containers get stuck in `ContainerCreating` or `Pending` state. Inspect Calico logs to get a clue what could be happening.
 
@@ -400,7 +400,7 @@ $argList = @(`
 )
 ```
 
-### Reinstall Calico if needed
+### reinstall Calico if needed
 
 Stop `kubelet.exe` and `kube-proxy.exe` processes, then reinstall Calico and start back up `kubelet.exe` and `kube-proxy.exe` processes.
 
