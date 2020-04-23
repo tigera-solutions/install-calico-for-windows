@@ -129,6 +129,12 @@ Get-WindowsFeature -Name Routing
 Install-WindowsFeature -Name Routing
 # have to restart instance to apply changes
 Restart-Computer
+# make sure RemoteAccess service is not disnabled
+Get-Service RemoteAccess | select -Property name,status,starttype
+# or get service using WMI object
+Get-WMIObject win32_service | ?{$_.Name -like 'remoteaccess'}
+# if disabled set the startmode to Automatic
+Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
 # once rebooted
 Install-RemoteAccess -VpnType RoutingOnly
 # if not running, start the service
@@ -214,19 +220,44 @@ These settings must be configured in kubelet's configuration:
 - `--node-ip` - should be explicitly set to host's main network adapter's IP (e.g. `10.0.0.21`)
 - `--max-pods` ​should be set to, at most, the IPAM block size of the IP pool in use minus 4 (i.e. `2^(32-n) - 4`)
 
-Note, each node in the cluster must have `KubernetesCluster` tag defined. The `./provision-cluster.sh` script sets this tag for each node.
+Note, each node in the cluster should have `KubernetesCluster` and `kubernetes.io/cluster` tags defined. The `./provision-cluster.sh` script sets this tag for each node.
 Calico files already provide a helper `C:\TigeraCalico\kubernetes\start-kubelet.ps1` script to start the `kubelet`. Open the file and adjust necessary parameters before launching the script.
 For more details refer to `C:\TigeraCalico\kubernetes\README.txt` file.
 
 ```powershell
-# adjust parameters
+# open file and adjust parameters
 notepad.exe C:\TigeraCalico\kubernetes\start-kubelet.ps1
+```
+
+example configuration
+
+```powershell
+# find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
+# find '--node-ip=' and set to host's main IP (e.g. '10.0.0.21')
+$NodeIp = "10.0.0.21"
+$NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
+$argList = @(`
+    "--hostname-override=$NodeName", `
+    "--node-ip=$NodeIp", `
+    .....
+)
 ```
 
 ### configure `kube-proxy` component
 
 The `kube-proxy` reads the `HNS` network name from an environment variable `K​UBE_NETWORK`.
 With default configuration Calico uses network name `Calico` and flannel uses network name `cbr0`.
+
+example configuration
+
+```powershell
+# find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
+$NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
+$argList = @(`
+    "--hostname-override=$NodeName", `
+    .....
+)
+```
 
 ## install Calico on Windows nodes
 
@@ -239,7 +270,20 @@ Edit the file `​C:\TigeraCalico\config.ps1​` as follows:
 - Set `$env:CALICO_DATASTORE_TYPE​` to the Calico datastore you want to use. Note: `"etcdv3"` can only be used with Calico BGP networking. When using flannel or another networking provider, the `Kubernetes` API Datastore must be used.
 - Set `$env:KUBECONFIG​` to the location of the `kubeconfig` file Calico should use to access the `Kubernetes` API server.
 - If using `etcd` as the datastore, set the `$env:ETCD_​` parameters accordingly. ​Note: due to a limitation of the Windows dataplane, a `Kubernetes` service `ClusterIP` cannot be used for the `etcd` endpoint (the host compartment cannot reach `Kubernetes` services).
-- Set `$env:NODENAME​` to match the hostname used by `kubelet`. The default is to use the node's hostname.
+- **Must** set `$env:NODENAME​` to **match** the hostname used by `kubelet`. The default is to use the node's hostname.
+
+example configuration for `.\config.ps1`
+
+```powershell
+# assuming node internal DNS is 'ip-10-0-0-21.us-west-2.compute.internal'
+$env:NODENAME = "ip-10-0-0-21.us-west-2.compute.internal"
+# when using VXLAN, set it to "vxlan"
+$env:CALICO_NETWORKING_BACKEND="vxlan"
+# set datastore type
+$env:CALICO_DATASTORE_TYPE = "kubernetes"
+# if IP autodetection can't select the correct IP, set it manually. You can view which IP Calico selected in the C:\TigeraCalico\logs\tigera-node.log
+# $env:IP = "autodetect"
+````
 
 Start `kubelet`, `kube-proxy` and install `calico`
 
@@ -290,4 +334,80 @@ kubectl exec -it $IIS_POD -- powershell
 # resolve DNS and test connectivity
 Resolve-DnsName -Name nginx-svc
 iwr -UseBasicParsing http://nginx-svc
+```
+
+## Troubleshooting
+
+### Missing AWS metadata route
+
+Sometimes AWS metadata route can be removed when Calico gets installed. If there are applications that rely on AWS metadata route, add it to the routing table.
+
+```powershell
+# view existing routes
+Get-NetRoute
+# retrieve interface index
+Get-NetAdapter
+$IfaceIndex='x' # use index number from Get-NetAdapter output
+# add AWS metadata route
+New-NetRoute -DestinationPrefix 169.254.169.254/32 -InterfaceIndex $IfaceIndex
+```
+
+### Containers get stuck in `CreatingContainer` state
+
+If some configuration settings were not set correctly, you may see containers get stuck in `ContainerCreating` or `Pending` state. Inspect Calico logs to get a clue what could be happening.
+
+```powershell
+cd C:\TigeraCalico
+# list kubelet and kube-proxy logs
+ls .\logs\
+# get last N lines from a log file
+gc .\logs\tigera-node.err.log -Tail 30
+gc .\logs\tigera-node.log -Tail 30
+```
+
+One misconfiguration that can lead to containers getting stuck in `ContainerCreating` state is misconfiguration of `$env:NODENAME` env var in `.\config.ps1`, `.\kubernetes\start-kubelet.ps1`, or `.\kubernetes\start-kube-proxy.ps1`.
+
+```powershell
+# make sure RemoteAccess service is running. If not, set its StartType to "Automatic" and start the service.
+Get-Service RemoteAccess | select -Property name,status,starttype
+Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
+Start-Service RemoteAccess
+##########################################
+####### C:\TigeraCalico\config.ps1 #######
+##########################################
+# make sure $env:NODENAME variable is set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
+$env:NODENAME = "ip-10-0-0-21.us-west-2.compute.internal"
+############################################################
+####### C:\TigeraCalico\kubernetes\start-kubelet.ps1 #######
+############################################################
+# find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
+# find '--node-ip=' and set to host's main IP (e.g. '10.0.0.21')
+$NodeIp = "10.0.0.21"
+$NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
+$argList = @(`
+    "--hostname-override=$NodeName", `
+    "--node-ip=$NodeIp", `
+    .....
+)
+###############################################################
+####### C:\TigeraCalico\kubernetes\start-kube-proxy.ps1 #######
+###############################################################
+# find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
+$NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
+$argList = @(`
+    "--hostname-override=$NodeName", `
+    .....
+)
+```
+
+### Reinstall Calico if needed
+
+Stop `kubelet.exe` and `kube-proxy.exe` processes, then reinstall Calico and start back up `kubelet.exe` and `kube-proxy.exe` processes.
+
+```powershell
+cd C:\TigeraCalico\
+.\uninstall-calico.ps1
+.\install-calico.ps1
+.\kubernetes\start-kubelet.ps1
+.\kubernetes\start-kube-proxy.ps1
 ```
