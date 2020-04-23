@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    stack: iis
+  name: iis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: iis
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        run: iis
+    spec:
+      containers:
+      # - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-1909
+      - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-1903
+      # - image: ${IIS_IMAGE}
+        name: iis
+        resources: {}
+        imagePullPolicy: IfNotPresent
+      nodeSelector:
+        kubernetes.io/os: windows
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: iis-svc
+  name: iis-svc
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: iis
