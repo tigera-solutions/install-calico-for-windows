@@ -124,15 +124,16 @@ netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allo
 Get-WindowsFeature -Name RemoteAccess,Routing
 # install the features
 Install-WindowsFeature -Name RemoteAccess,Routing
-# have to restart instance to apply changes
-Restart-Computer
-# once rebooted
-# make sure RemoteAccess service is not disnabled
+# check if the service is enabled after it was installed. If not, enable the service
+# make sure RemoteAccess service is not disabled
 Get-Service RemoteAccess | select -Property name,status,starttype
 # or get service using WMI object
 Get-WMIObject win32_service | ?{$_.Name -like 'remoteaccess'}
 # if disabled set the startmode to Automatic
 Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
+# have to restart instance to apply changes
+Restart-Computer
+# once rebooted
 # if not running, start the service
 Get-Service RemoteAccess
 Start-Service RemoteAccess
@@ -179,7 +180,7 @@ cd $HOME\Downloads
 # get kube v1.18.2 binaries
 $KubernetesVersion='v1.18.2'
 # download archived version that contains all node binaries
-iwr -usebasicparsing -outfile kubernetes-node-windows-amd64.tar.gz -uri https://dl.k8s.io/v1.18.2/kubernetes-node-windows-amd64.tar.gz
+iwr -usebasicparsing -outfile kubernetes-node-windows-amd64.tar.gz -uri https://dl.k8s.io/$KubernetesVersion/kubernetes-node-windows-amd64.tar.gz
 # extract kube components
 tar.exe -xf kubernetes-node-windows-amd64.tar.gz
 # or download node binaries one by one
@@ -227,6 +228,8 @@ notepad.exe C:\TigeraCalico\kubernetes\start-kubelet.ps1
 
 example configuration
 
+>Note: there is no need to explicitly configure `--hostname-override` flag if `$env:NODENAME` env var is set in `C:\TigeraCalico\config.ps1`.
+
 ```powershell
 # find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
 # find '--node-ip=' and set to host's main IP (e.g. '10.0.0.21')
@@ -246,7 +249,12 @@ With default configuration Calico uses network name `Calico` and flannel uses ne
 
 example configuration
 
+>Note: there is no need to explicitly configure `--hostname-override` flag if `$env:NODENAME` env var is set in `C:\TigeraCalico\config.ps1`.
+
 ```powershell
+# open file and adjust parameters
+notepad.exe C:\TigeraCalico\kubernetes\start-kube-proxy.ps1
+
 # find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
 $NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
 $argList = @(`

@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
       # - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-1909
-      - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-1903
+      # - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-1903
+      - image: mcr.microsoft.com/windows/servercore/iis:windowsservercore
       # - image: ${IIS_IMAGE}
         name: iis
         resources: {}
