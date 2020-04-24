@@ -124,6 +124,10 @@ netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allo
 Get-WindowsFeature -Name RemoteAccess,Routing
 # install the features
 Install-WindowsFeature -Name RemoteAccess,Routing
+# verify that these features were installed
+Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
+# if DirectAccess-VPN feature wasn't installed, then explicitly install it
+Install-WindowsFeature -Name DirectAccess-VPN
 # check if the service is enabled after it was installed. If not, enable the service
 # make sure RemoteAccess service is not disabled
 Get-Service RemoteAccess | select -Property name,status,starttype
