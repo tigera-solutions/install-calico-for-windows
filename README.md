@@ -120,13 +120,10 @@ Open `kubelet` port in the firewall and enable required Windows features
 # open kubelet port
 netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allow protocol=TCP localport=10250
 # enable `RemoteAccess` feature on each Windows node
-# view if feature already installed
-Get-WindowsFeature -Name RemoteAccess
-# install the feature
-Install-WindowsFeature -Name RemoteAccess
-# check WinDSR feature
-Get-WindowsFeature -Name Routing
-Install-WindowsFeature -Name Routing
+# view if features already installed
+Get-WindowsFeature -Name RemoteAccess,Routing
+# install the features
+Install-WindowsFeature -Name RemoteAccess,Routing
 # have to restart instance to apply changes
 Restart-Computer
 # once rebooted
