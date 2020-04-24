@@ -421,10 +421,13 @@ cd C:\TigeraCalico\
 If you see the error `Error from server: error dialing backend: dial tcp XX.XX.XX.XX:10250: i/o timeout` while attempting to run `kubectl exec` command on a POD, verify that `kubelet` port `10250` is open in Windows firewall.
 
 ```powershell
-# get all active rules for Public firewall profile
+# see if there is a firewall rule for port 10250
+netsh advfirewall firewall show rule name=all | findstr /i localport | findstr 10250
+# alternative way using powershell
+## get all active rules for Public firewall profile
 $rules=(Get-NetFirewallProfile -Name Public | Get-NetFirewallRule | where {$_.Enabled -eq "True"})
-# check if any rule contains kubelet port
+## check if any rule contains kubelet port
 $rules | Get-NetFirewallPortFilter | where { $_.LocalPort -Eq "10250" }
-# if no, add firewall rule
+# if no rule defined to open default kubelet port, add firewall rule
 netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allow protocol=TCP localport=10250
 ````
