@@ -129,14 +129,13 @@ Get-WindowsFeature -Name Routing
 Install-WindowsFeature -Name Routing
 # have to restart instance to apply changes
 Restart-Computer
+# once rebooted
 # make sure RemoteAccess service is not disnabled
 Get-Service RemoteAccess | select -Property name,status,starttype
 # or get service using WMI object
 Get-WMIObject win32_service | ?{$_.Name -like 'remoteaccess'}
 # if disabled set the startmode to Automatic
 Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
-# once rebooted
-Install-RemoteAccess -VpnType RoutingOnly
 # if not running, start the service
 Get-Service RemoteAccess
 Start-Service RemoteAccess
