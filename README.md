@@ -408,7 +408,7 @@ cd C:\TigeraCalico\
 .\kubernetes\start-kube-proxy.ps1
 ```
 
-## `i/o timeout` for `kubectl exec` command
+### `i/o timeout` for `kubectl exec` command
 
 If you see the error `Error from server: error dialing backend: dial tcp XX.XX.XX.XX:10250: i/o timeout` while attempting to run `kubectl exec` command on a POD, verify that `kubelet` port `10250` is open in Windows firewall.
 
