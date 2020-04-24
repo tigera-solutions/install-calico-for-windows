@@ -33,12 +33,12 @@ wait_for_instance(){
 
 # vars
 REGION=${1:-'us-west-2'}
-OWNER=${2:-'mrktng'}
-IAM_ROLE_MASTER=${3:-'mrktng-k8s-master-role'} # AWS instance profile
-IAM_ROLE_WORKER=${4:-'mrktng-k8s-worker-role'} # AWS instance profile
-IAM_PROFILE_MASTER=${5:-'mrktng-k8s-master-instance-profile'} # AWS instance profile
-IAM_PROFILE_WORKER=${6:-'mrktng-k8s-worker-instance-profile'} # AWS instance profile
-KEY_PAIR_NAME=${7:-'mrktng-aws-ec2'} # AWS key pair
+OWNER=${2:-'calico'}
+IAM_ROLE_MASTER=${3:-"$OWNER-k8s-master-role"} # AWS instance profile
+IAM_ROLE_WORKER=${4:-"$OWNER-k8s-worker-role"} # AWS instance profile
+IAM_PROFILE_MASTER=${5:-"$OWNER-k8s-master-instance-profile"} # AWS instance profile
+IAM_PROFILE_WORKER=${6:-"$OWNER-k8s-worker-instance-profile"} # AWS instance profile
+KEY_PAIR_NAME=${7:-"$OWNER-aws-ec2"} # AWS key pair
 CLUSTER_ID=${8:-''}
 
 echo $GREEN "creating key-pair with name '$KEY_PAIR_NAME'" $NORMAL
@@ -142,6 +142,9 @@ export WIN_IMAGE_ID=ami-001589977a146ef31
 export WIN1903_IMAGE_ID=ami-060a4b0c07c89ef0d
 # Windows 1909 core with Containers
 export WIN1909_IMAGE_ID=ami-028cdf199fb6c2daf
+# Windows instance predefined password
+# NOTE: used for second Windows (i.e. worker3) instance only
+export WIN_PASSWORD='P@ssw0rd1234'
 # Windows 1909 core base
 # export WIN1909_IMAGE_ID=ami-0c7f9668831d801cd
 # Windows 1909 core with Containers
@@ -224,7 +227,7 @@ w2publicip=$(aws ec2 describe-instances --instance-ids $w2id --output json | jq 
 # wait_for_instance $w2id
 echo $GREEN "creating instance $W3" $NORMAL
 # windows password is set in win-user-data.xml
-w3id=$(aws ec2 run-instances --key-name $KEY_PAIR_NAME --image-id $WIN1909_IMAGE_ID --instance-type r5.large --security-group-ids $sgid --private-ip-address $W3IP --subnet $subnet1id --block-device-mappings $WIN_DISK_CONFIG --iam-instance-profile Name=${IAM_PROFILE_WORKER} --user-data '<powershell>net user Administrator "P@ssw0rd1234"</powershell>' --output json | jq '.Instances[0].InstanceId'| sed -e 's/^"//' -e 's/"$//')
+w3id=$(aws ec2 run-instances --key-name $KEY_PAIR_NAME --image-id $WIN1909_IMAGE_ID --instance-type r5.large --security-group-ids $sgid --private-ip-address $W3IP --subnet $subnet1id --block-device-mappings $WIN_DISK_CONFIG --iam-instance-profile Name=${IAM_PROFILE_WORKER} --user-data "<powershell>net user Administrator '$WIN_PASSWORD'</powershell>" --output json | jq '.Instances[0].InstanceId'| sed -e 's/^"//' -e 's/"$//')
 echo "$W3 instanceID = $w3id" >> ${RES_FILE}
 echo $GREEN "tagging instance $W3" $NORMAL
 aws ec2 create-tags --tags Key=creator,Value=$OWNER --resources $w3id
