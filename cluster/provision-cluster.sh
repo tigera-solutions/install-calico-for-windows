@@ -39,24 +39,45 @@ IAM_ROLE_WORKER=${4:-"$OWNER-k8s-worker-role"} # AWS instance profile
 IAM_PROFILE_MASTER=${5:-"$OWNER-k8s-master-instance-profile"} # AWS instance profile
 IAM_PROFILE_WORKER=${6:-"$OWNER-k8s-worker-instance-profile"} # AWS instance profile
 KEY_PAIR_NAME=${7:-"$OWNER-aws-ec2"} # AWS key pair
-CLUSTER_ID=${8:-''}
+CLUSTER_ID=${8:-''} # use when building multiple clusters in the same AWS account
 
-echo $GREEN "creating key-pair with name '$KEY_PAIR_NAME'" $NORMAL
-aws ec2 create-key-pair --key-name $KEY_PAIR_NAME --query 'KeyMaterial' --output text > "$KEY_PAIR_NAME.pem"
+if [[ $(aws ec2 describe-key-pairs --key-names $KEY_PAIR_NAME 2>&1 | grep -c 'InvalidKeyPair.NotFound') == 1 ]]; then
+  echo "no key pair '$KEY_PAIR_NAME' found"
+  echo $GREEN "creating key-pair with name '$KEY_PAIR_NAME'" $NORMAL
+  aws ec2 create-key-pair --key-name $KEY_PAIR_NAME --query 'KeyMaterial' --output text > "$KEY_PAIR_NAME.pem"
+else
+  echo "found key pair '$KEY_PAIR_NAME', using existing key pair"
+fi
 
-echo $GREEN "creating IAM role and policy for master nodes" $NORMAL
-aws iam create-role --role-name $IAM_ROLE_MASTER --assume-role-policy-document file://ec2-role-trust-policy.json
-aws iam put-role-policy --role-name $IAM_ROLE_MASTER --policy-name $OWNER-k8s-master-policy --policy-document file://k8s-master-access-policy.json
-echo $GREEN "creating instance profile for master nodes" $NORMAL
-aws iam create-instance-profile --instance-profile-name $IAM_PROFILE_MASTER
-aws iam add-role-to-instance-profile --instance-profile-name $IAM_PROFILE_MASTER --role-name $IAM_ROLE_MASTER
+if [[ $(aws iam get-role --role-name $IAM_ROLE_MASTER 2>&1 | grep -c 'NoSuchEntity') == 1 ]]; then
+  echo $GREEN "creating IAM role and policy for master nodes" $NORMAL
+  aws iam create-role --role-name $IAM_ROLE_MASTER --assume-role-policy-document file://ec2-role-trust-policy.json
+  aws iam put-role-policy --role-name $IAM_ROLE_MASTER --policy-name $OWNER-k8s-master-policy --policy-document file://k8s-master-access-policy.json
+else
+  echo "found role '$IAM_ROLE_MASTER', using existing role"
+fi
+if [[ $(aws iam get-instance-profile --instance-profile-name $IAM_PROFILE_MASTER 2>&1 | grep -c 'NoSuchEntity') == 1 ]]; then
+  echo $GREEN "creating instance profile for master nodes" $NORMAL
+  aws iam create-instance-profile --instance-profile-name $IAM_PROFILE_MASTER
+  aws iam add-role-to-instance-profile --instance-profile-name $IAM_PROFILE_MASTER --role-name $IAM_ROLE_MASTER
+else
+  echo "found profile '$IAM_PROFILE_MASTER', using existing profile for master nodes"
+fi
 
-echo $GREEN "creating IAM role and policy for master nodes" $NORMAL
-aws iam create-role --role-name $IAM_ROLE_WORKER --assume-role-policy-document file://ec2-role-trust-policy.json
-aws iam put-role-policy --role-name $IAM_ROLE_WORKER --policy-name $OWNER-k8s-worker-policy --policy-document file://k8s-worker-access-policy.json
-echo $GREEN "creating instance profile for master nodes" $NORMAL
-aws iam create-instance-profile --instance-profile-name $IAM_PROFILE_WORKER
-aws iam add-role-to-instance-profile --instance-profile-name $IAM_PROFILE_WORKER --role-name $IAM_ROLE_WORKER
+if [[ $(aws iam get-role --role-name $IAM_ROLE_WORKER 2>&1 | grep -c 'NoSuchEntity') == 1 ]]; then
+  echo "role '$IAM_ROLE_WORKER' does not exist"
+  echo $GREEN "creating IAM role and policy for worker nodes" $NORMAL
+  aws iam create-role --role-name $IAM_ROLE_WORKER --assume-role-policy-document file://ec2-role-trust-policy.json
+  aws iam put-role-policy --role-name $IAM_ROLE_WORKER --policy-name $OWNER-k8s-worker-policy --policy-document file://k8s-worker-access-policy.json
+  echo "found role '$IAM_ROLE_WORKER', using existing role"
+fi
+if [[ $(aws iam get-instance-profile --instance-profile-name $IAM_PROFILE_WORKER 2>&1 | grep -c 'NoSuchEntity') == 1 ]]; then
+  echo $GREEN "creating instance profile for worker nodes" $NORMAL
+  aws iam create-instance-profile --instance-profile-name $IAM_PROFILE_WORKER
+  aws iam add-role-to-instance-profile --instance-profile-name $IAM_PROFILE_WORKER --role-name $IAM_ROLE_WORKER
+else
+  echo "found profile '$IAM_PROFILE_WORKER', using existing profile for worker nodes"
+fi
 
 # project name var
 export PROJ_NAME="c4w${CLUSTER_ID}"
@@ -239,6 +260,13 @@ echo $GREEN "getting public IP for $W3" $NORMAL
 w3publicip=$(aws ec2 describe-instances --instance-ids $w3id --output json | jq '.Reservations[0].Instances[0].NetworkInterfaces[0].PrivateIpAddresses[0].Association.PublicIp' | sed -e 's/^"//' -e 's/"$//')
 
 ############################
+# capture pub IPs
+############################
+echo "$MASTER0=$m0publicip" >> ${RES_FILE}
+echo "$W1=$w1publicip" >> ${RES_FILE}
+echo "$W2=$w2publicip" >> ${RES_FILE}
+echo "$W3=$w3publicip" >> ${RES_FILE}
+############################
 # print created objects' IDs
 ############################
 echo -e "# project name: $PROJ_NAME"
@@ -302,3 +330,123 @@ echo "aws iam delete-instance-profile --instance-profile-name $IAM_PROFILE_WORKE
 # echo "#aws iam delete-policy --policy-arn $OWNER-k8s-worker-policy" >> ${CLEANUP_SCRIPT} # inline policy will be deleted along with the role
 echo "aws ec2 delete-key-pair --key-name $KEY_PAIR_NAME" >> ${CLEANUP_SCRIPT}
 ##########################################################################################################################################
+# helper scripts vars
+KUBE_VERSION="v1.18.2"
+KUBE_PACKAGE_NAME="kubernetes-node-windows-amd64.tar.gz"
+CALICO_PACKAGE_NAME="tigera-calico-windows-v3.12.1.zip"
+HELPER_PREFIX="helper"
+#######################
+# build helper script to download Kubernetes binaries onto Linux node
+#######################
+# create script
+HELPER_SCRIPT="${BASEDIR}/${HELPER_PREFIX}-get-kube-bin.sh"
+echo $GREEN "generating get-kube-bin script ${HELPER_SCRIPT}" $NORMAL
+echo "#!/usr/bin/env bash" > ${HELPER_SCRIPT}
+echo "echo \"downloading Kubernetes binaries for version '$KUBE_VERSION' ...\"" >> ${HELPER_SCRIPT}
+echo "curl -kL -o \$HOME/$KUBE_PACKAGE_NAME https://dl.k8s.io/$KUBE_VERSION/$KUBE_PACKAGE_NAME" >> ${HELPER_SCRIPT}
+#######################
+# build helper script to prepare Windows node
+#######################
+# create script
+HELPER_SCRIPT="${BASEDIR}/${HELPER_PREFIX}-prep-win-node.ps1"
+echo $GREEN "generating prep-win-node script ${HELPER_SCRIPT}" $NORMAL
+cat > $HELPER_SCRIPT << EOF
+[CmdletBinding()]
+param(
+  \$MasterIP=\"$m0publicip\",
+  \$SshKeyPath=\"\$HOME\\$KEY_PAIR_NAME.pem\",
+  \$CniDir=\"c:\k\cni\",
+  \$Nodename=\"\",
+  \$DatastoreType=\"kubernetes\"
+)
+
+echo 'Check and install required Windows features'
+Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
+
+if ((Get-WindowsFeature RemoteAccess).InstallState -notlike 'installed'){
+  echo "installing feature 'RemoteAccess'"
+  Install-WindowsFeature RemoteAccess
+}
+if ((Get-WindowsFeature Routing).InstallState -notlike 'installed'){
+  echo "installing feature 'Routing'"
+  Install-WindowsFeature Routing
+}
+if ((Get-WindowsFeature DirectAccess-VPN).InstallState -notlike 'installed'){
+  echo "installing feature 'DirectAccess-VPN'"
+  Install-WindowsFeature DirectAccess-VPN
+}
+Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
+Get-Service RemoteAccess | select -Property name,status,starttype
+echo 'Rebooting node ...'
+Restart-Computer -Confirm
+EOF
+#######################
+# build helper script to configure Calico for Windows
+#######################
+# create script
+HELPER_SCRIPT="${BASEDIR}/${HELPER_PREFIX}-configure-calico.ps1"
+echo $GREEN "generating configure-calico script ${HELPER_SCRIPT}" $NORMAL
+cat > $HELPER_SCRIPT << EOF
+[CmdletBinding()]
+param(
+  \$Nodename="",
+  \$MasterIP,
+  \$SshKeyPath="\$HOME\calico-aws-ec2.pem",
+  \$CalicoPackageName="tigera-calico-windows-v3.12.1.zip",
+  \$KubernetesVersion="v1.18.2",
+  \$KubePackageName="kubernetes-node-windows-amd64.tar.gz",
+  \$CniDir="c:\k\cni",
+  \$CalicoBackend="vxlan",
+  \$DatastoreType="kubernetes",
+  \$CalicoDir="C:\TigeraCalico"
+)
+
+if ((Get-Service RemoteAccess).Status -notlike 'running'){
+  write-host -ForegroundColor Red -BackgroundColor Black "'RemoteAccess' service is not running. It must be running in order to proceed. Exiting configuration process..."
+  exit 1
+}
+cd \$HOME\Downloads
+echo "download Calico for Windows package from linux node"
+scp.exe -o StrictHostKeyChecking=no -i \$HOME\\$KEY_PAIR_NAME.pem ubuntu@$m0publicip\`:~/$CALICO_PACKAGE_NAME ./
+echo "extract Calico for Windows components"
+Expand-Archive \$HOME\Downloads\\$CALICO_PACKAGE_NAME c:\\
+echo "build Kubernetes pause image"
+\$WIN_CORE_VER=\$((Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId)
+docker pull mcr.microsoft.com/windows/nanoserver:\$WIN_CORE_VER
+docker tag mcr.microsoft.com/windows/nanoserver:\${WIN_CORE_VER} mcr.microsoft.com/windows/nanoserver:latest
+cd \$HOME\Documents
+mkdir pause; cd pause;
+iwr -usebasicparsing -outfile Dockerfile -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/windows/Dockerfile
+docker build -t kubeletwin/pause .
+# create kube folders
+mkdir c:\k; mkdir c:\k\cni; mkdir c:\k\cni\config;
+cd \$HOME\Downloads
+echo "download Kubernetes binaries package"
+scp.exe -o StrictHostKeyChecking=no -i \$HOME\\$KEY_PAIR_NAME.pem ubuntu@$m0publicip\`:~/$KUBE_PACKAGE_NAME ./
+echo "unpack Kubernetes components"
+tar.exe -xf $KUBE_PACKAGE_NAME
+# copy kube components to c:\k path
+cp .\kubernetes\node\bin\*.exe c:\k
+echo "donload kubeconfig file"
+\$env:KUBECONFIG="c:\k\config"
+scp.exe -o StrictHostKeyChecking=no -i \$HOME\\$KEY_PAIR_NAME.pem ubuntu@$m0publicip\`:~/.kube/config \$env:KUBECONFIG
+echo "check kubectl connection to control plane"
+Set-Alias -Name kubectl -Value "c:\k\kubectl.exe"
+kubectl version
+echo "download CNI plugins"
+iwr -usebasicparsing -outfile \$CniDir\flannel.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/flannel.exe
+iwr -usebasicparsing -outfile \$CniDir\win-bridge.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/win-bridge.exe
+iwr -usebasicparsing -outfile \$CniDir\host-local.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
+echo "configure Calico"
+if ([string]::IsNullOrEmpty(\$Nodename)){\$Nodename=\$((curl -UseBasicParsing http://169.254.169.254/latest/meta-data/local-hostname).Content)}
+echo "configuring C:\TigeraCalico\config.ps1"
+(cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:CALICO_NETWORKING_BACKEND(.*?)\$',"\`\$env\`:CALICO_NETWORKING_BACKEND=\`"\$CalicoBackend\`"" | Set-Content c:\TigeraCalico\config.ps1
+(cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:NODENAME(.*?)\$',"\`\$env\`:NODENAME=\`"\$Nodename\`"" | Set-Content c:\TigeraCalico\config.ps1
+(cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:CALICO_DATASTORE_TYPE(.*?)\$',"\`\$env\`:CALICO_DATASTORE_TYPE=\`"\$DatastoreType\`"" | Set-Content c:\TigeraCalico\config.ps1
+echo "install Calico"
+Start-Process powershell.exe -ArgumentList \$CalicoDir\install-calico.ps1
+echo "start kubelet"
+Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kubelet.ps1
+echo "start kube-proxy"
+Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kube-proxy.ps1
+EOF

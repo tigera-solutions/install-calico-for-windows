@@ -48,7 +48,7 @@ write_files:
       plugins=ifcfg-rh
       plugins=keyfile
       [keyfile]
-      unmanaged-devices=interface-name:cali*
+      unmanaged-devices=interface-name:cali*;interface-name:tunl*
   - path: "/etc/apt/sources.list.d/kubernetes.list"
     permissions: "0644"
     owner: "root"
