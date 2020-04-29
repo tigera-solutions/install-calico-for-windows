@@ -137,7 +137,7 @@ aws ec2 get-password-data --instance-id $WIN_INST_ID --priv-launch-key $SSH_KEY 
 
 Open `kubelet` port in the firewall and enable required Windows features
 
->When BGP networking is used, Calico CNI requires `RemoteAccess, Routing, DirectAccess-VPN` Windows features to be installed.
+>Calico CNI requires `RemoteAccess, Routing, DirectAccess-VPN` Windows features to be installed on the host.
 
 ```powershell
 # open kubelet port

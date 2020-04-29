@@ -360,9 +360,10 @@ param(
   \$DatastoreType=\"kubernetes\"
 )
 
+echo 'open kubelet port 10250'
+netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allow protocol=TCP localport=10250
 echo 'Check and install required Windows features'
 Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
-
 if ((Get-WindowsFeature RemoteAccess).InstallState -notlike 'installed'){
   echo "installing feature 'RemoteAccess'"
   Install-WindowsFeature RemoteAccess
@@ -438,7 +439,18 @@ iwr -usebasicparsing -outfile \$CniDir\flannel.exe -uri https://github.com/Micro
 iwr -usebasicparsing -outfile \$CniDir\win-bridge.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/win-bridge.exe
 iwr -usebasicparsing -outfile \$CniDir\host-local.exe -uri https://github.com/Microsoft/SDN/raw/master/Kubernetes/flannel/l2bridge/cni/host-local.exe
 echo "configure Calico"
-if ([string]::IsNullOrEmpty(\$Nodename)){\$Nodename=\$((curl -UseBasicParsing http://169.254.169.254/latest/meta-data/local-hostname).Content)}
+if ([string]::IsNullOrEmpty(\$Nodename)){
+  if (\$CalicoBackend -match "bgp"){
+    \$Nodename=(read-host "provide node name (i.e. internal DNS name, e.g. \`"ip-10-0-0-21.us-west-2.compute.internal\`")")}
+  else{
+    try{
+      \$Nodename=(curl -UseBasicParsing http://169.254.169.254/latest/meta-data/local-hostname).Content
+    }
+    catch{
+      Write-Host -ForegroundColor Red -BackgroundColor Black "Failed to retrieve hosts's internal DNS name."
+    \$Nodename=(read-host "provide node name (i.e. internal DNS name, e.g. \`"ip-10-0-0-21.us-west-2.compute.internal\`")")
+    }}
+}
 echo "configuring C:\TigeraCalico\config.ps1"
 (cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:CALICO_NETWORKING_BACKEND(.*?)\$',"\`\$env\`:CALICO_NETWORKING_BACKEND=\`"\$CalicoBackend\`"" | Set-Content c:\TigeraCalico\config.ps1
 (cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:NODENAME(.*?)\$',"\`\$env\`:NODENAME=\`"\$Nodename\`"" | Set-Content c:\TigeraCalico\config.ps1
@@ -449,4 +461,9 @@ echo "start kubelet"
 Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kubelet.ps1
 echo "start kube-proxy"
 Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kube-proxy.ps1
+try{
+  Get-NetRoute -DestinationPrefix 169.254.169.254/32 -AddressFamily IPv4}
+catch{
+  echo "adding AWS metadata route"
+  New-NetRoute -DestinationPrefix 169.254.169.254/32 -InterfaceIndex (Get-NetAdapter | where {\$_.Name -like "vethernet*2*"} | select -ExpandProperty ifIndex)}
 EOF
