@@ -292,11 +292,15 @@ INSTANCE_ARR="$w1id $w2id $w3id $m0id"
 # create cleanup script
 CLEANUP_SCRIPT="${BASEDIR}/${OWNER}-${PROJ_NAME}-cleanup.sh"
 echo $GREEN "generating cleanup script ${CLEANUP_SCRIPT}" $NORMAL
-echo "#!/usr/bin/env bash" > ${CLEANUP_SCRIPT}
+# echo "#!/usr/bin/env bash" > ${CLEANUP_SCRIPT}
 
-echo "aws ec2 terminate-instances --instance-ids $INSTANCE_ARR" >> ${CLEANUP_SCRIPT}
-echo "for instance in $INSTANCE_ARR; do" >> ${CLEANUP_SCRIPT}
+# echo "aws ec2 terminate-instances --instance-ids $INSTANCE_ARR" >> ${CLEANUP_SCRIPT}
+# echo "for instance in $INSTANCE_ARR; do" >> ${CLEANUP_SCRIPT}
 cat >> ${CLEANUP_SCRIPT} << EOF
+#!/usr/bin/env bash
+
+aws ec2 terminate-instances --instance-ids $INSTANCE_ARR > /dev/null 2>&1
+for instance in $INSTANCE_ARR; do
   for i in {1..10}; do
     state=\$(aws ec2 describe-instances --instance-ids \$instance --query "Reservations[].Instances[?(@.InstanceId=='\$instance')].State.Name" --output text)
     if [[ "\$state" == "terminated" ]]; then
@@ -308,27 +312,26 @@ cat >> ${CLEANUP_SCRIPT} << EOF
     fi
   done
 done
-EOF
-echo "echo -e 'removing:\n\t SG: $sgid\n\t Subnet: $subnet1id\n\t RouteTable: $rtbid\n\t IGW: $igwid\n\t VPC: $vpcid'" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 delete-security-group --group-id $sgid" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 delete-subnet --subnet-id $subnet1id" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 delete-route-table --route-table-id $rtbid" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 detach-internet-gateway --internet-gateway-id $igwid --vpc-id $vpcid" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 delete-internet-gateway --internet-gateway-id $igwid" >> ${CLEANUP_SCRIPT}
-echo "aws ec2 delete-vpc --vpc-id $vpcid" >> ${CLEANUP_SCRIPT}
 
-echo "echo -e 'removing IAM roles:$IAM_ROLE_MASTER $IAM_ROLE_WORKER\n\t instance profiles: $IAM_PROFILE_MASTER $IAM_PROFILE_WORKER\n\t policies: $OWNER-k8s-master-policy $OWNER-k8s-worker-policy\n\t key-pair: $KEY_PAIR_NAME'" >> ${CLEANUP_SCRIPT}
-echo "aws iam remove-role-from-instance-profile --instance-profile-name $IAM_PROFILE_MASTER --role-name $IAM_ROLE_MASTER" >> ${CLEANUP_SCRIPT}
-echo "aws iam remove-role-from-instance-profile --instance-profile-name $IAM_PROFILE_WORKER --role-name $IAM_ROLE_WORKER" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-role-policy --role-name $IAM_ROLE_MASTER --policy-name $OWNER-k8s-master-policy" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-role-policy --role-name $IAM_ROLE_WORKER --policy-name $OWNER-k8s-worker-policy" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-role --role-name $IAM_ROLE_MASTER" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-role --role-name $IAM_ROLE_WORKER" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-instance-profile --instance-profile-name $IAM_PROFILE_MASTER" >> ${CLEANUP_SCRIPT}
-echo "aws iam delete-instance-profile --instance-profile-name $IAM_PROFILE_WORKER" >> ${CLEANUP_SCRIPT}
-# echo "#aws iam delete-policy --policy-arn $OWNER-k8s-master-policy" >> ${CLEANUP_SCRIPT} # inline policy will be deleted along with the role
-# echo "#aws iam delete-policy --policy-arn $OWNER-k8s-worker-policy" >> ${CLEANUP_SCRIPT} # inline policy will be deleted along with the role
-echo "aws ec2 delete-key-pair --key-name $KEY_PAIR_NAME" >> ${CLEANUP_SCRIPT}
+echo -e 'removing:\n\t SG: $sgid\n\t Subnet: $subnet1id\n\t RouteTable: $rtbid\n\t IGW: $igwid\n\t VPC: $vpcid'
+aws ec2 delete-security-group --group-id $sgid
+aws ec2 delete-subnet --subnet-id $subnet1id
+aws ec2 delete-route-table --route-table-id $rtbid
+aws ec2 detach-internet-gateway --internet-gateway-id $igwid --vpc-id $vpcid
+aws ec2 delete-internet-gateway --internet-gateway-id $igwid
+aws ec2 delete-vpc --vpc-id $vpcid
+
+echo -e 'removing IAM roles:$IAM_ROLE_MASTER $IAM_ROLE_WORKER\n\t instance profiles: $IAM_PROFILE_MASTER $IAM_PROFILE_WORKER\n\t policies: $OWNER-k8s-master-policy $OWNER-k8s-worker-policy\n\t key-pair: $KEY_PAIR_NAME'
+aws iam remove-role-from-instance-profile --instance-profile-name $IAM_PROFILE_MASTER --role-name $IAM_ROLE_MASTER
+aws iam remove-role-from-instance-profile --instance-profile-name $IAM_PROFILE_WORKER --role-name $IAM_ROLE_WORKER
+aws iam delete-role-policy --role-name $IAM_ROLE_MASTER --policy-name $OWNER-k8s-master-policy
+aws iam delete-role-policy --role-name $IAM_ROLE_WORKER --policy-name $OWNER-k8s-worker-policy
+aws iam delete-role --role-name $IAM_ROLE_MASTER
+aws iam delete-role --role-name $IAM_ROLE_WORKER
+aws iam delete-instance-profile --instance-profile-name $IAM_PROFILE_MASTER
+aws iam delete-instance-profile --instance-profile-name $IAM_PROFILE_WORKER
+aws ec2 delete-key-pair --key-name $KEY_PAIR_NAME
+EOF
 ##########################################################################################################################################
 # helper scripts vars
 KUBE_VERSION="v1.18.2"
@@ -339,11 +342,22 @@ HELPER_PREFIX="helper"
 # build helper script to download Kubernetes binaries onto Linux node
 #######################
 # create script
-HELPER_SCRIPT="${BASEDIR}/${HELPER_PREFIX}-get-kube-bin.sh"
+HELPER_SCRIPT="${BASEDIR}/${HELPER_PREFIX}-prep-master-node.sh"
 echo $GREEN "generating get-kube-bin script ${HELPER_SCRIPT}" $NORMAL
-echo "#!/usr/bin/env bash" > ${HELPER_SCRIPT}
-echo "echo \"downloading Kubernetes binaries for version '$KUBE_VERSION' ...\"" >> ${HELPER_SCRIPT}
-echo "curl -kL -o \$HOME/$KUBE_PACKAGE_NAME https://dl.k8s.io/$KUBE_VERSION/$KUBE_PACKAGE_NAME" >> ${HELPER_SCRIPT}
+cat > $HELPER_SCRIPT <<EOF
+#!/usr/bin/env bash
+
+echo "configuring kubeadm config"
+sudo cp /root/kubeadm/kubeadm-config.yaml ./
+# export k8s control plane endpoint var
+export MASTER_PUB_IP=$m0publicip
+sed -i -- 's/\\#controlPlaneEndpoint:\\ \$MASTER_PUB_IP/controlPlaneEndpoint: \$MASTER_PUB_IP/g' ./kubeadm-config.yaml
+envsubst < kubeadm-config.yaml > cluster-config.yaml
+echo "downloading Kubernetes binaries for version '$KUBE_VERSION' ..."
+curl -kL -o \$HOME/$KUBE_PACKAGE_NAME https://dl.k8s.io/$KUBE_VERSION/$KUBE_PACKAGE_NAME
+echo "initialize k8s cluster using the following command:"
+echo -e "\t sudo kubeadm init --config=cluster-config.yaml"
+EOF
 #######################
 # build helper script to prepare Windows node
 #######################
@@ -353,15 +367,11 @@ echo $GREEN "generating prep-win-node script ${HELPER_SCRIPT}" $NORMAL
 cat > $HELPER_SCRIPT << EOF
 [CmdletBinding()]
 param(
-  \$MasterIP=\"$m0publicip\",
-  \$SshKeyPath=\"\$HOME\\$KEY_PAIR_NAME.pem\",
-  \$CniDir=\"c:\k\cni\",
-  \$Nodename=\"\",
-  \$DatastoreType=\"kubernetes\"
+  \$KubeletPort=10250
 )
 
-echo 'open kubelet port 10250'
-netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allow protocol=TCP localport=10250
+echo "open kubelet port 10250"
+netsh advfirewall firewall add rule name="Kubelet port \$KubeletPort" dir=in action=allow protocol=TCP localport=\$KubeletPort
 echo 'Check and install required Windows features'
 Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
 if ((Get-WindowsFeature RemoteAccess).InstallState -notlike 'installed'){
@@ -376,6 +386,7 @@ if ((Get-WindowsFeature DirectAccess-VPN).InstallState -notlike 'installed'){
   echo "installing feature 'DirectAccess-VPN'"
   Install-WindowsFeature DirectAccess-VPN
 }
+Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
 Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
 Get-Service RemoteAccess | select -Property name,status,starttype
 echo 'Rebooting node ...'
@@ -456,14 +467,20 @@ echo "configuring C:\TigeraCalico\config.ps1"
 (cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:NODENAME(.*?)\$',"\`\$env\`:NODENAME=\`"\$Nodename\`"" | Set-Content c:\TigeraCalico\config.ps1
 (cat c:\TigeraCalico\config.ps1) -replace '^\\\$env\:CALICO_DATASTORE_TYPE(.*?)\$',"\`\$env\`:CALICO_DATASTORE_TYPE=\`"\$DatastoreType\`"" | Set-Content c:\TigeraCalico\config.ps1
 echo "install Calico"
-Start-Process powershell.exe -ArgumentList \$CalicoDir\install-calico.ps1
+Start-Process powershell.exe -ArgumentList \$CalicoDir\\install-calico.ps1 -Wait
+# Invoke-Command -FilePath \$CalicoDir\\install-calico.ps1
 echo "start kubelet"
-Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kubelet.ps1
+Start-Process powershell.exe -ArgumentList \$CalicoDir\\kubernetes\\start-kubelet.ps1
 echo "start kube-proxy"
-Start-Process powershell.exe -ArgumentList \$CalicoDir\kubernetes\start-kube-proxy.ps1
-try{
-  Get-NetRoute -DestinationPrefix 169.254.169.254/32 -AddressFamily IPv4}
-catch{
-  echo "adding AWS metadata route"
-  New-NetRoute -DestinationPrefix 169.254.169.254/32 -InterfaceIndex (Get-NetAdapter | where {\$_.Name -like "vethernet*2*"} | select -ExpandProperty ifIndex)}
+Start-Process powershell.exe -ArgumentList \$CalicoDir\\kubernetes\\start-kube-proxy.ps1
+echo "ensuring AWS metadata route"
+\$MetaRoute='169.254.169.254/32'
+\$Route=(Get-NetRoute -DestinationPrefix \$MetaRoute -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+if (\$Route){
+  echo "AWS metadata route '\$MetaRoute' exists"
+}else{
+  echo "AWS metadata route is missing. Adding the routes '\$MetaRoute'"
+  echo "note, the command looks for a specific network adapter naming. Adjust the query if needed."
+  New-NetRoute -DestinationPrefix \$MetaRoute -InterfaceIndex (Get-NetAdapter | where {\$_.Name -like "*(ethernet 2)*"} | select -ExpandProperty ifIndex)
+}
 EOF
