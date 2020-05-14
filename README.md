@@ -1,4 +1,4 @@
-# Getting up and running with Calico for Windows on AWS
+# Getting up and running with Calico for Windows
 
 In this guide words `node` and `host` are interchangeable. If you are interested and want to test-drive `Calico for Windows`, please [reach out to us](https://www.tigera.io/contact/). We will be happy to share the trial version of the product with you.
 
