@@ -148,7 +148,7 @@ Open `kubelet` port in the firewall and enable required Windows features
 netsh advfirewall firewall add rule name="Kubelet port 10250" dir=in action=allow protocol=TCP localport=10250
 # enable `RemoteAccess` feature on each Windows node
 # view if features already installed
-Get-WindowsFeature -Name RemoteAccess,Routing
+Get-WindowsFeature -Name RemoteAccess,Routing,DirectAccess-VPN
 # install the features
 Install-WindowsFeature -Name RemoteAccess,Routing
 # verify that these features were installed
@@ -165,8 +165,8 @@ Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
 # have to restart instance to apply changes
 Restart-Computer
 # once rebooted
-# if not running, start the service
 Get-Service RemoteAccess
+# if not running, start the service
 Start-Service RemoteAccess
 ```
 
