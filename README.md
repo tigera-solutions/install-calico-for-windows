@@ -34,6 +34,25 @@ Follow instructions in the next three sections to install and configure k8s clus
   >This will reboot the instance. If prompted, confirm the reboot action.
 - copy `helper-configure-calico.ps1` script into `$HOME\Downloads` path and execute it.
 
+Example using Linux `master` host to transfer files to Windows hosts.
+
+```bash
+MASTER0_IP='xx.xx.xx.xx' # set master node public IP
+# upload files to master host
+scp -i ./calico-aws-ec2.pem /tmp/tigera-calico-windows-v3.12.1.zip ./helper-prep-win-node.ps1 ./helper-configure-calico.ps1  ubuntu@$MASTER0_IP:~/
+```
+
+Download files onto Windows host from the `master` using `Powershell` shell on Windows side. This assumes that `*.pem` was transferred to the Windows host.
+
+```powershell
+MASTER0_IP='xx.xx.xx.xx' # set master node public IP
+SSH_KEY='./path/to/ssh_key' # ssh private key
+# download files on Windows
+scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$MASTER0_IP`:~/tigera-calico-windows-v3.12.1.zip .\Downloads\
+scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$MASTER0_IP`:~/helper-prep-win-node.ps1 .\Downloads\
+scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY ubuntu@$MASTER0_IP`:~/helper-configure-calico.ps1 .\Downloads\
+```
+
 ## provision cluster infrastructure
 
 ```bash
@@ -101,15 +120,17 @@ curl -O https://docs.projectcalico.org/manifests/calico.yaml
 # if using BGP networking, set CALICO_IPV4POOL_IPIP to "Never" and then apply the manifest
 # if using VXLAN networking:
 ## - replace CALICO_IPV4POOL_IPIP var with CALICO_IPV4POOL_VXLAN var
-sed -i -- 's/CALICO_IPV4POOL_IPIP/CALICO_IPV4POOL_VXLAN/1' ./calico.yaml
+sed -i "" 's/CALICO_IPV4POOL_IPIP/CALICO_IPV4POOL_VXLAN/1' ./calico.yaml
 ## - replace calico_backend: "bird" with calico_backend: "vxlan"
-sed -i -- 's/calico_backend: "bird"/calico_backend: "vxlan"/1' ./calico.yaml
+sed -i "" 's/calico_backend: "bird"/calico_backend: "vxlan"/1' ./calico.yaml
 ## - comment out the line - -bird-live and - -bird-ready from the calico/node liveness/readiness check
-sed -i -- '/- -bird-live/d' ./calico.yaml
-sed -i -- '/- -bird-ready/d' ./calico.yaml
+sed -i "" '/- -bird-live/d' ./calico.yaml
+sed -i "" '/- -bird-ready/d' ./calico.yaml
 # install Calico
 kubectl apply -f calico.yaml
 ```
+
+>`sed` command format could be different on your workstation. Adjust accordingly if needed.
 
 Retrieve `kube-proxy` DaemonSet and `coredns` Deployment and make sure each has `nodeSelector` configured to run on Linux only.
 For instance:
@@ -352,6 +373,7 @@ cd C:\TigeraCalico\kubernetes
 # .\start-kube-proxy.ps1 script waits for a POD to be created before launching kube-proxy.exe
 # you can manually create a POD to speed up the kube-proxy configuration
 Set-Alias -Name kubectl -Value "c:\k\kubectl.exe"
+$env:KUBECONFIG="c:\k\config"
 kubectl run nano --rm -it --image mcr.microsoft.com/windows/nanoserver:latest --image-pull-policy=IfNotPresent --restart=Never --command ping localhost
 ```
 
