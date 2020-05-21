@@ -76,7 +76,7 @@ ssh -i $SSH_KEY -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubun
 sudo cp /root/kubeadm/kubeadm-config.yaml ./
 # export k8s control plane endpoint var
 export MASTER_PUB_IP=$MASTER0_IP
-sed -i -- 's/\#controlPlaneEndpoint:\ $MASTER_PUB_IP/controlPlaneEndpoint: $MASTER_PUB_IP/g' ./kubeadm-config.yaml
+sed -i "" 's/\#controlPlaneEndpoint:\ $MASTER_PUB_IP/controlPlaneEndpoint: $MASTER_PUB_IP/g' ./kubeadm-config.yaml
 envsubst < kubeadm-config.yaml > cluster-config.yaml
 # launch k8s cluster
 sudo kubeadm init --config=cluster-config.yaml
