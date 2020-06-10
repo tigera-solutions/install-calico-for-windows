@@ -64,14 +64,15 @@ chmod +x provision-cluster.sh
 
 ## launch k8s cluster and join Linux workers
 
-`SSH` into master node and launch k8s control plane. The `cluster/cloud-config.yaml` contains example configuration for k8s cluster and can be used to launch the cluster.
+`SSH` into the master node and initialize k8s control plane. The `cluster/cloud-config.yaml` contains example configuration for k8s cluster and can be used to launch the cluster.
 
 ```bash
-MASTER0_IP='xx.xx.xx.xx' # set master node public IP
-WORKER1_IP='xx.xx.xx.xx' # set linux worker node public IP
+MASTER0_IP='xx.xx.xx.xx' # set master node public IP in your local shell
 SSH_KEY='./path/to/ssh_key'
 cmhod 0600 $SSH_KEY
 ssh -i $SSH_KEY -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@$MASTER0_IP
+# commands below should be executed from the master node
+MASTER0_IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4) # get master node public IP from ec2 metadata
 # copy kubeadm example config
 sudo cp /root/kubeadm/kubeadm-config.yaml ./
 # export k8s control plane endpoint var
@@ -99,10 +100,11 @@ kubectl get nodes
  Use `kubeadm join` command (i.e. without `--control-plane`) to join any Linux worker nodes to the cluster.
 
 ```bash
-MASTER0_IP='xx.xx.xx.xx' # set master node public IP
 WORKER1_IP='xx.xx.xx.xx' # set linux worker node public IP
 SSH_KEY='./path/to/ssh_key'
 ssh -i $SSH_KEY -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@$WORKER1_IP
+# commands below should be executed on each worker node
+MASTER0_IP='xx.xx.xx.xx' # set master node public IP
 # join Linux worker node
 JOIN_TOKEN='xxxxx'
 CERT_HASH='xxxxx' # use certificate hash value retrieved from master node
