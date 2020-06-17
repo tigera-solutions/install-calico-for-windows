@@ -69,6 +69,7 @@ if [[ $(aws iam get-role --role-name $IAM_ROLE_WORKER 2>&1 | grep -c 'NoSuchEnti
   echo $GREEN "creating IAM role and policy for worker nodes" $NORMAL
   aws iam create-role --role-name $IAM_ROLE_WORKER --assume-role-policy-document file://ec2-role-trust-policy.json
   aws iam put-role-policy --role-name $IAM_ROLE_WORKER --policy-name $OWNER-k8s-worker-policy --policy-document file://k8s-worker-access-policy.json
+else
   echo "found role '$IAM_ROLE_WORKER', using existing role"
 fi
 if [[ $(aws iam get-instance-profile --instance-profile-name $IAM_PROFILE_WORKER 2>&1 | grep -c 'NoSuchEntity') == 1 ]]; then
