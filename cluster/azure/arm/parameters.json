@@ -27,7 +27,7 @@
       "value": 1
     },
     "_artifactsLocation": {
-      "value": "https://raw.githubusercontent.com/tigera-solutions/install-calico-for-windows/master/cluster/azure/config"
+      "value": "https://raw.githubusercontent.com/tigera-solutions/install-calico-for-windows/master/cluster/azure/config/"
     },
     "_artifactsFilePath": {
       "value": "configure-win-node.ps1"

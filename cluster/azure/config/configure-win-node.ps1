@@ -23,4 +23,4 @@ Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN
 Set-Service -Name RemoteAccess -ComputerName . -StartupType "Automatic"
 Get-Service RemoteAccess | select -Property name,status,starttype
 echo "Rebooting node ..."
-Restart-Computer
+Restart-Computer -Force

@@ -2,17 +2,47 @@
 
 These instructions provide configuration example of a k8s cluster using Azure infrastructure.
 
+## provision cluster infrastructure
+
+A quick way to provision and configure the unmanaged Kubernetes (k8s) cluster is to use scripts in this repository. The main script `provision-cluster.sh` provisions Azure VM instances ready for k8s installation.
+
+Since the required version of Windows could differ for users, you can retrieve the desired `sku` using Azure CLI commands. Use `arm/parameters.json` file to set `windowsImageSKU` parameter.
+
+```bash
+# get all SKUs for 2019 Windows images
+az vm image list -l westus2 -p MicrosoftWindowsServer -f WindowsServer --all --output table | grep '2019\-'
+```
+
+Clone the Github repo, set required parameters and execute the script to provision the infrastructure.
+
+```bash
+# clone repo
+git clone https://github.com/tigera-solutions/install-calico-for-windows.git
+cd install-calico-for-windows/cluster/azure
+chmod +x provision-cluster.sh
+# set vars
+SSH_KEY_PATH='/path/to/ssh_pub_key'
+RESOURCE_GROUP='calico'
+LOCATION='westus2'
+PROJECT_NAME='c4w'
+SSH_PUB_KEY="$(cat $SSH_KEY_PATH)"
+# provision infrastructure
+./provision-cluster.sh $RESOURCE_GROUP $LOCATION $PROJECT_NAME $SSH_PUB_KEY
+```
+
 ## using scripted configuration
 
-The fasted way to provision and configure the unmanaged Kubernetes (k8s) cluster is to use scripts in this repository. The main script `provision-cluster.sh` provisions Azure VM instances ready for k8s installation. The script outputs several resources in the end:
+The `provision-cluster.sh` script creates several resources:
 
 - `helper-upload-assets-to-master.sh` - used to upload assets to the linux master node. The Calico for Windows `ZIP` is assumed to be at the `/tmp` dir (e.g. `/tmp/tigera-calico-windows-v3.12.1.zip`).
 - `helper-prep-master-node.sh` - should be used on a `master` host to prepare k8s `master` node and download k8s binaries for Windows.
   >This was done to speed up Windows configuration process as direct download of k8s binaries to a Windows node was taking significantly more time.
 - `helper-prep-win-node.ps1` - configures necessary features and a service on Windows host. Must be executed on a Windows node in `Powershell`.
+  >This script is provided as a reference to configure necessary Windows features. It is executed as a part of Windows VM provisioning process.
+
 - `helper-configure-calico.ps1` - configures and installs Calico and k8s components. Must be executed on a Windows node in `Powershell`.
 
-Follow instructions in the next three sections to install and configure k8s cluster. Make sure to install Calico CNI before moving onto configuring Windows hosts. Once CNI is installed, the scripted approach can be used to configure Windows hosts. The flow for scripted installation is the following:
+These instructions guide through a scripted configuration of k8s cluster. Make sure to [install `Calico CNI`](../../README.md#install-and-configure-calico) before moving onto configuring Windows hosts. Once CNI is installed, the scripted approach can be used to configure Windows hosts. The flow for scripted installation is the following:
 
 - upload `Calico for Windows` package (e.g. `tigera-calico-windows-v3.12.1.zip`) into the `$HOME` of `azureuser` user on the `master` host. You can use `helper-upload-assets-to-master.sh` script to upload necessary assets to the `master` host.
 
@@ -30,6 +60,8 @@ Follow instructions in the next three sections to install and configure k8s clus
   chmod +x helper-prep-master-node.sh
   ./helper-prep-master-node.sh
   ```
+
+  >The script will output the `kubeadm init` command that can be used to initialize k8s cluster. Once the master node is initialized, join remaining Linux worker node(s). Then [install `Calico CNI`](../../README.md#install-and-configure-calico) before moving onto the next step to configure Windows hosts.
 
 - copy private SSH key into `$HOME` directory on Windows host. Make sure to use the matching private key pair for the public key you provided to `provision-cluster.sh` script.
 
@@ -57,29 +89,7 @@ Follow instructions in the next three sections to install and configure k8s clus
 
 ## using manual provisioning of cluster infrastructure
 
-Since the required version of Windows could be different for users, you can retrieve the desired `sku` using Azure CLI commands. Use `arm/parameters.json` file to set `windowsImageSKU` parameter.
-
-```bash
-# get all SKUs for 2019 Windows images
-az vm image list -l westus2 -p MicrosoftWindowsServer -f WindowsServer --all --output table | grep -i '2019\-'
-```
-
-Clone the Github repo, set required parameters and execute the script to provision the infrastructure.
-
-```bash
-# clone repo
-git clone https://github.com/tigera-solutions/install-calico-for-windows.git
-cd install-calico-for-windows/cluster/azure
-chmod +x provision-cluster.sh
-# set vars
-SSH_KEY_PATH='/path/to/ssh_pub_key'
-RESOURCE_GROUP='calico'
-LOCATION='westus2'
-PROJECT_NAME='c4w'
-SSH_PUB_KEY="$(cat $SSH_KEY_PATH)"
-# provision infrastructure
-./provision-cluster.sh $RESOURCE_GROUP $LOCATION $PROJECT_NAME $SSH_PUB_KEY
-```
+Before continuing with manual k8s cluster configuration, make sure to [provision necessary infrastructure](#provision-cluster-infrastructure) for the cluster.
 
 ### launch k8s cluster and join Linux workers
 
@@ -117,7 +127,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubectl get nodes
 ```
 
- Use `kubeadm join` command (i.e. without `--control-plane`) to join any Linux worker nodes to the cluster.
+Use `kubeadm join` command (i.e. without `--control-plane`) to join any Linux worker nodes to the cluster.
 
 ```bash
 WORKER1_IP='xx.xx.xx.xx' # set linux worker node public IP
@@ -142,6 +152,12 @@ az monitor activity-log list --correlation-id 25296ac4-0d8b-4eb9-9aca-5ac82d8680
 # view deployed VM extensions
 VM_NAME="$PROJECT_NAME-vm-win0"
 az vm extension list -g $RESOURCE_GROUP --vm-name $VM_NAME
+
+# if extension script fails on Windows, inspect extension log files on the VM
+ls 'C:\WindowsAzure\Logs\Plugins\Microsoft.Compute.CustomScriptExtension'
+
+# inspect downloaded files for the extension on Windows VM
+ls 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.*\Downloads\'
 ```
 
 ## cleanup provisioned resources
