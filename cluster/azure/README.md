@@ -2,7 +2,7 @@
 
 These instructions provide configuration example of a k8s cluster using Azure infrastructure.
 
-## scripted configuration
+## using scripted configuration
 
 The fasted way to provision and configure the unmanaged Kubernetes (k8s) cluster is to use scripts in this repository. The main script `provision-cluster.sh` provisions Azure VM instances ready for k8s installation. The script outputs several resources in the end:
 
@@ -55,7 +55,7 @@ Follow instructions in the next three sections to install and configure k8s clus
   .\helper-configure-calico.ps1 -SshKeyPath $SSH_KEY
   ```
 
-## provision cluster infrastructure
+## using manual provisioning of cluster infrastructure
 
 Since the required version of Windows could be different for users, you can retrieve the desired `sku` using Azure CLI commands. Use `arm/parameters.json` file to set `windowsImageSKU` parameter.
 
@@ -81,7 +81,7 @@ SSH_PUB_KEY="$(cat $SSH_KEY_PATH)"
 ./provision-cluster.sh $RESOURCE_GROUP $LOCATION $PROJECT_NAME $SSH_PUB_KEY
 ```
 
-## launch k8s cluster and join Linux workers
+### launch k8s cluster and join Linux workers
 
 `SSH` into the master node and initialize k8s control plane. The `cluster/cloud-config.yaml` contains example configuration for k8s cluster and can be used to launch the cluster.
 
