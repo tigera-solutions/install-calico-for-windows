@@ -80,8 +80,9 @@ else
   echo "found profile '$IAM_PROFILE_WORKER', using existing profile for worker nodes"
 fi
 
-# project name var
+# cluster vars
 export PROJ_NAME="c4w${CLUSTER_ID}"
+export CLUSTER_TYPE='owned' # [owned | shared]
 #############################################
 # configure VPC, subnets, igw, RouteTable, SG
 #############################################
@@ -93,7 +94,7 @@ echo $GREEN "tagging VPC: $vpcid" $NORMAL
 aws ec2 create-tags --resources $vpcid --tags Key=creator,Value=$OWNER
 aws ec2 create-tags --resources $vpcid --tags Key=Name,Value=$OWNER-$PROJ_NAME-vpc
 # this tag is needed so that some kube objects can manipulate AWS resources (e.g. LB)
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $vpcid
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $vpcid
 # create subnet1 for the VPC and get its Id
 echo $GREEN "creating Subnet1" $NORMAL
 subnet1id=$(aws ec2 create-subnet --vpc-id $vpcid --cidr-block 10.0.0.0/24 --availability-zone ${REGION}a --output json | jq '.Subnet.SubnetId'| sed -e 's/^"//' -e 's/"$//')
@@ -101,7 +102,7 @@ subnet1id=$(aws ec2 create-subnet --vpc-id $vpcid --cidr-block 10.0.0.0/24 --ava
 echo $GREEN "tagging Subnet1: $subnet1id" $NORMAL
 aws ec2 create-tags --resources $subnet1id --tags Key=creator,Value=$OWNER
 aws ec2 create-tags --resources $subnet1id --tags Key=Name,Value=$OWNER-$PROJ_NAME-subnet1
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $subnet1id
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $subnet1id
 # must set public IP mapping so that you can SSH into the instances. you canNOT change this later.
 echo $GREEN "tweaking Subnet1 to have public IP on instance launch" $NORMAL
 aws ec2 modify-subnet-attribute --subnet-id $subnet1id --map-public-ip-on-launch
@@ -112,7 +113,7 @@ echo $GREEN "tagging IGW: $igwid" $NORMAL
 aws ec2 create-tags --resources $igwid --tags Key=creator,Value=$OWNER
 aws ec2 create-tags --resources $igwid --tags Key=Name,Value=$OWNER-$PROJ_NAME-IGW
 # this tag is used in AWS cloud provider. Without it the cloud provider won't work correctly.
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $igwid
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $igwid
 # attach IGW to VPC
 echo $GREEN "attaching IGW to VPC" $NORMAL
 aws ec2 attach-internet-gateway --vpc-id $vpcid --internet-gateway-id $igwid --output json
@@ -122,7 +123,7 @@ rtbid=$(aws ec2 create-route-table --vpc-id $vpcid --output json | jq '.RouteTab
 echo $GREEN "tagging RouteTable: $rtbid" $NORMAL
 aws ec2 create-tags --resources $rtbid --tags Key=creator,Value=$OWNER
 aws ec2 create-tags --resources $rtbid --tags Key=Name,Value=$OWNER-$PROJ_NAME-RT
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $rtbid
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $rtbid
 # associate RouteTable with the subnet
 echo $GREEN "associating RouteTable with Subnet" $NORMAL
 aws ec2 associate-route-table  --subnet-id $subnet1id --route-table-id $rtbid --output json
@@ -201,7 +202,7 @@ echo "$MASTER0 instanceID = $m0id" >> ${RES_FILE}
 echo $GREEN "tagging instance $MASTER0" $NORMAL
 aws ec2 create-tags --tags Key=creator,Value=$OWNER --resources $m0id
 aws ec2 create-tags --tags Key=Name,Value=$OWNER-$PROJ_NAME-m0 --resources $m0id
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $m0id
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $m0id
 # disable source destination check to allow traffic packet flow (e.g. ICMP)
 echo $GREEN "disabling source-dest-check for $MASTER0" $NORMAL
 aws ec2 modify-instance-attribute --source-dest-check "{\"Value\": false}" --instance-id $m0id
@@ -219,7 +220,7 @@ echo "$W1 instanceID = $w1id" >> ${RES_FILE}
 echo $GREEN "tagging instance $W1" $NORMAL
 aws ec2 create-tags --tags Key=creator,Value=$OWNER --resources $w1id
 aws ec2 create-tags --tags Key=Name,Value=$OWNER-$PROJ_NAME-w1 --resources $w1id
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $w1id
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $w1id
 # disable source destination check to allow traffic packet flow (e.g. ICMP)
 echo $GREEN "disabling source-dest-check for $W1" $NORMAL
 aws ec2 modify-instance-attribute --source-dest-check "{\"Value\": false}" --instance-id $w1id
@@ -237,7 +238,7 @@ echo "$W2 instanceID = $w2id" >> ${RES_FILE}
 echo $GREEN "tagging instance $W2" $NORMAL
 aws ec2 create-tags --tags Key=creator,Value=$OWNER --resources $w2id
 aws ec2 create-tags --tags Key=Name,Value=$OWNER-$PROJ_NAME-w2 --resources $w2id
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $w2id
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $w2id
 echo $GREEN "disabling source-dest-check for $W2" $NORMAL
 aws ec2 modify-instance-attribute --source-dest-check "{\"Value\": false}" --instance-id $w2id
 echo $GREEN "getting public IP for $W2" $NORMAL
@@ -254,7 +255,7 @@ echo "$W3 instanceID = $w3id" >> ${RES_FILE}
 echo $GREEN "tagging instance $W3" $NORMAL
 aws ec2 create-tags --tags Key=creator,Value=$OWNER --resources $w3id
 aws ec2 create-tags --tags Key=Name,Value=$OWNER-$PROJ_NAME-w3 --resources $w3id
-aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${OWNER}cluster1 --resources $w3id
+aws ec2 create-tags --tags Key=kubernetes.io/cluster/${OWNER}cluster1,Value=${CLUSTER_TYPE} --resources $w3id
 echo $GREEN "disabling source-dest-check for $W3" $NORMAL
 aws ec2 modify-instance-attribute --source-dest-check "{\"Value\": false}" --instance-id $w3id
 echo $GREEN "getting public IP for $W3" $NORMAL

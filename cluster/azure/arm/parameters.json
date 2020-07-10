@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName":{
+      "value": "cali4win"
+    },
+    "adminUsername": {
+      "value": "azureuser"
+    },
+    "adminPublicKey": {
+      "value": "GEN-SSH-PUB-KEY"
+    },
+    "windowsAdminPassword": {
+      "value": "P@ssw0rd1234"
+    },
+    "windowsImageSKU": {
+      "value": "2019-Datacenter-Core-with-Containers"
+    },
+    "numberOfMasters": {
+      "value": 1
+    },
+    "numberOfWorkers": {
+      "value": 1
+    },
+    "numberOfWindows": {
+      "value": 1
+    },
+    "_artifactsLocation": {
+      "value": "https://raw.githubusercontent.com/tigera-solutions/install-calico-for-windows/master/cluster/azure/config"
+    },
+    "_artifactsFilePath": {
+      "value": "configure-win-node.ps1"
+    }
+  }
+}
