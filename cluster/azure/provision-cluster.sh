@@ -100,7 +100,7 @@ SSH_KEY_PATH=\${1:-'\$HOME/.ssh/calico-az-id.pem'}
 CALICO_ZIP=\${2:-'/tmp/tigera-calico-windows-v3.12.1.zip'}
 MASTER_IP=\${3:-"$m0publicip"}
 echo "uploading assets to the linux node (\$MASTER_IP)"
-scp -i \${SSH_KEY_PATH} \${SSH_KEY_PATH} \${CALICO_ZIP} ./helper-prep-master-node.sh ./helper-prep-win-node.ps1 ./helper-configure-calico.ps1 azureuser@\$MASTER_IP:~/
+scp -i \${SSH_KEY_PATH} ./helper-prep-master-node.sh ./helper-prep-win-node.ps1 ./helper-configure-calico.ps1 \${CALICO_ZIP} azureuser@\$MASTER_IP:~/
 EOF
 #######################
 # build helper script to download Kubernetes binaries onto Linux node
@@ -168,7 +168,7 @@ cat > $HELPER_SCRIPT << EOF
 param(
   \$Nodename="",
   \$MasterIP="$m0publicip",
-  \$SshKeyPath="\$HOME\calico-az-id.pem",
+  \$SshKeyPath="\$HOME\az_id",
   \$CalicoPackageName="tigera-calico-windows-v3.12.1.zip",
   \$KubernetesVersion="v1.18.5",
   \$KubePackageName="kubernetes-node-windows-amd64.tar.gz",

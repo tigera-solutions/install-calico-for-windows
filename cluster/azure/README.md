@@ -75,17 +75,29 @@ These instructions guide through a scripted configuration of k8s cluster. Make s
   ```
 
 - copy `helper-prep-win-node.ps1` script into `$HOME\Downloads` path and execute it.
-  >This will reboot the instance. If prompted, confirm the reboot action.
+  >This script is provided as a reference how to configure necessary Windows features. It is executed as a part of Windows VM provisioning process.
+  >Check whether features were installed `Get-WindowsFeature RemoteAccess,Routing,DirectAccess-VPN; Get-Service RemoteAccess`, and if so, move onto the next step. Otherwise run it to install necessary features. The script will force reboot the instance.
 - copy `helper-configure-calico.ps1` script into `$HOME\Downloads` path and execute it.
 
   ```bash
   SSH_KEY="$HOME\ssh_key"
   cd .\Downloads\
   # prepare Windows node
-  .\helper-prep-win-node.ps1
+  # check if required featured already installed
+  if (((Get-WindowsFeature RemoteAccess).InstallState -notlike 'installed') -or ((Get-WindowsFeature Routing).InstallState -notlike 'installed') -or ((Get-WindowsFeature DirectAccess-VPN).InstallState -notlike 'installed')) {
+    .\helper-prep-win-node.ps1
+  }
   # configure Kubernetes components and install Calico
   .\helper-configure-calico.ps1 -SshKeyPath $SSH_KEY
   ```
+
+- create a temporary `POD` to finalize network configuration on Windows host
+
+  ```bash
+  c:\k\kubectl --kubeconfig=c:\k\config run nano --rm -it --image mcr.microsoft.com/windows/nanoserver:latest --image-pull-policy=IfNotPresent --restart=Never --command cmd /c 'echo hello'
+  ```
+
+[Deploy test apps](../../README.md#deploy-apps-and-test-connectivity) and test connectivity.
 
 ## using manual provisioning of cluster infrastructure
 
