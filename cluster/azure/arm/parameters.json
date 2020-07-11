@@ -15,7 +15,7 @@
       "value": "P@ssw0rd1234"
     },
     "windowsImageSKU": {
-      "value": "2019-Datacenter-Core-with-Containers"
+      "value": "datacenter-core-1909-with-containers-smalldisk"
     },
     "numberOfMasters": {
       "value": 1

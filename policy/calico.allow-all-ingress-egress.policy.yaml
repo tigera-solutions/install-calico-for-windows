@@ -1,0 +1,15 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-all-ingress-egress
+spec:
+  selector: all()
+  order: 10
+  types:
+    - Egress
+    - Ingress
+  egress:
+    - action: Allow
+  ingress:
+    - action: Allow
+---

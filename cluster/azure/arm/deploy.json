@@ -140,8 +140,7 @@
     "vmName": "[concat(parameters('projectName'), '-vm')]",
     "publicIPAddressName": "[concat(parameters('projectName'), '-ip')]",
     "networkInterfaceName": "[concat(parameters('projectName'), '-nic')]",
-    "networkSecurityGroupName": "[concat(parameters('projectName'), '-nsg')]",
-    "networkSecurityGroupName2": "[concat(variables('vNetSubnetName'), '-nsg')]",
+    "networkSecurityGroupName": "[concat(variables('vNetSubnetName'), '-nsg')]",
     "masterCustomData": "[base64(parameters('masterConfig'))]",
     "workerCustomData": "[base64(parameters('workerConfig'))]",
     "windowsCustomData": "[base64(parameters('windowsConfig'))]",
@@ -150,48 +149,10 @@
   },
   "resources": [
     {
-      "type": "Microsoft.Network/networkSecurityGroups",
-      "apiVersion": "2018-11-01",
-      "name": "[variables('networkSecurityGroupName')]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "securityRules": [
-          {
-            "name": "ssh_rule",
-            "properties": {
-              "description": "Locks inbound down to ssh default port 22.",
-              "protocol": "Tcp",
-              "sourcePortRange": "*",
-              "destinationPortRange": "22",
-              "sourceAddressPrefix": "*",
-              "destinationAddressPrefix": "*",
-              "access": "Allow",
-              "priority": 110,
-              "direction": "Inbound"
-            }
-          },
-          {
-            "name": "k8s_apiserver_rule",
-            "properties": {
-              "description": "Allow inbound to kube apiserver port 6443.",
-              "protocol": "Tcp",
-              "sourcePortRange": "*",
-              "destinationPortRange": "6443",
-              "sourceAddressPrefix": "*",
-              "destinationAddressPrefix": "*",
-              "access": "Allow",
-              "priority": 130,
-              "direction": "Inbound"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "comments": "Simple Network Security Group for subnet [variables('vNetSubnetName')]",
+      "comments": "Default Network Security Group for subnet [variables('vNetSubnetName')]",
       "type": "Microsoft.Network/networkSecurityGroups",
       "apiVersion": "2019-08-01",
-      "name": "[variables('networkSecurityGroupName2')]",
+      "name": "[variables('networkSecurityGroupName')]",
       "location": "[parameters('location')]",
       "properties": {
         "securityRules": [
@@ -245,7 +206,7 @@
       "name": "[variables('vNetName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName2'))]"
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
       ],
       "properties": {
         "addressSpace": {
@@ -259,7 +220,7 @@
             "properties": {
               "addressPrefix": "[variables('vNetSubnetAddressPrefix')]",
               "networkSecurityGroup": {
-                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName2'))]"
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
               }
             }
           }
@@ -293,8 +254,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('publicIPAddressName'), '-master', copyindex()))]",
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]",
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]"
       ],
       "properties": {
         "ipConfigurations": [
@@ -392,8 +352,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('publicIPAddressName'), '-worker', copyindex()))]",
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]",
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]"
       ],
       "properties": {
         "ipConfigurations": [
@@ -491,8 +450,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('publicIPAddressName'), '-win', copyindex()))]",
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]",
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]"
       ],
       "properties": {
         "ipConfigurations": [

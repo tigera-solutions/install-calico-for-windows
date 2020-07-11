@@ -10,7 +10,12 @@ Since the required version of Windows could differ for users, you can retrieve t
 
 ```bash
 # get all SKUs for 2019 Windows images
-az vm image list -l westus2 -p MicrosoftWindowsServer -f WindowsServer --all --output table | grep '2019\-'
+az vm image list -l westus2 -p MicrosoftWindowsServer -f WindowsServer --all --output table | grep '1909-'
+
+# a few SKUs to use
+# 2019-Datacenter-Core-with-Containers
+# Datacenter-Core-1903-with-Containers-smalldisk
+# datacenter-core-1909-with-containers-smalldisk
 ```
 
 Clone the Github repo, set required parameters and execute the script to provision the infrastructure.
@@ -67,8 +72,8 @@ These instructions guide through a scripted configuration of k8s cluster. Make s
 
   ```bash
   # RDP into Windows host and download necessary assets
-  SSH_KEY="$HOME\ssh_key"
-  MASTER0_IP='xx.xx.xx.xx'
+  $SSH_KEY="$HOME\ssh_key"
+  $MASTER0_IP='xx.xx.xx.xx'
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/tigera-calico-windows-v3.12.1.zip .\Downloads\
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/helper-prep-win-node.ps1 .\Downloads\
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/helper-configure-calico.ps1 .\Downloads\

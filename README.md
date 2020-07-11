@@ -320,15 +320,64 @@ nslookup iis-svc
 curl -Is http://nginx-svc | grep -i http
 curl -Is http://iis-svc | grep -i http
 exit
+#############################################
+# one-liners to test the network connectivity
+#############################################
+# test service DNS resolution and curl Nginx endpoint
+kubectl exec -t netshoot -- sh -c 'SVC=nginx-svc; nslookup $SVC; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
+# test service DNS resolution and curl IIS endpoint
+kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; nslookup $SVC; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
 # connecto to iis pod and test connectivity to nginx pod
 IIS_POD=$(kubectl get pod -l run=iis -o jsonpath='{.items[*].metadata.name}')
 # kubectl exec -it $IIS_POD -- powershell
 # resolve DNS and test connectivity
 kubectl exec -t $IIS_POD -- powershell -command 'Resolve-DnsName -Name nginx-svc'
+# NOTE: make sure to use Windows Server 1903+ to curl other kube services from Windows PODs
 # test nginx pod port access
 kubectl exec -t $IIS_POD -- powershell -command 'Test-NetConnection -ComputerName nginx-svc -Port 80'
 # curl nginx service
-kubectl exec -t $IIS_POD -- powershell -command 'iwr -UseBasicParsing http://nginx-svc'
+kubectl exec -t $IIS_POD -- powershell -command 'iwr -UseBasicParsing  -TimeoutSec 5 http://nginx-svc'
+```
+
+## apply policies to tighten application access
+
+Allow DNS access for all PODs in `default` namespace.
+
+```bash
+# label kube-system namespace to target it in policies
+kubectl label ns kube-system dnshost=true
+# apply DNS policy that targets kube-system namespace
+kubectl apply -f policy/k8s.allow-dns.yaml
+# service names should be resolvable
+kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; nslookup $SVC'
+IIS_POD=$(kubectl get pod -l run=iis -o jsonpath='{.items[*].metadata.name}')
+kubectl exec -t $IIS_POD -- powershell -command 'Resolve-DnsName -Name nginx-svc'
+```
+
+Allow only `iis` PODs to access `nginx` service.
+
+```bash
+# apply policy to allow only iis PODs to access nginx service
+kubectl apply -f policy/k8s.allow-iis-egress-to-nginx.policy.yaml
+kubectl apply -f policy/k8s.allow-nginx-ingress-from-iis.yaml
+# iis POD should be able to curl nginx-svc
+kubectl exec -t $IIS_POD -- powershell -command 'iwr -UseBasicParsing  -TimeoutSec 5 http://nginx-svc'
+# netshoot POD should not be able to curl nginx-svc
+kubectl exec -t netshoot -- sh -c 'SVC=nginx-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
+```
+
+Allow `netshoot` POD to access `iis` PODs, and then deploy Calico ingress policy to prevent `netshoot` from accessing the `iis` PODs. You'll need to [install `calicoctl`](https://docs.projectcalico.org/getting-started/clis/calicoctl/install) to apply the Calico policy
+
+```bash
+# apply policy to allow only netshoot POD to access iis service
+kubectl apply -f policy/k8s.allow-netshoot-egress-to-iis.yaml
+# netshoot POD should be able to curl iis-svc
+kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
+# apply Calico policy to allow iis service access for any POD but netshoot
+# you'll need to use 'calicoctl' to apply the Calico policy: https://docs.projectcalico.org/getting-started/clis/calicoctl/install
+DATASTORE_TYPE=kubernetes calicoctl apply -f policy/calico.allow-iis-ingress.policy.yaml
+# now netshoot POD should not be able to curl iis-svc
+kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
 ```
 
 ## troubleshooting
@@ -349,7 +398,7 @@ New-NetRoute -DestinationPrefix 169.254.169.254/32 -InterfaceIndex $IfaceIndex
 
 ### containers get stuck in `CreatingContainer` state
 
-If some configuration settings were not set correctly, you may see containers get stuck in `ContainerCreating` or `Pending` state. Inspect Calico logs to get a clue what could be happening.
+If some configuration settings were not set correctly, you may see containers get stuck in `ContainerCreating` or `Pending` state. Inspect Calico logs.
 
 ```powershell
 cd C:\TigeraCalico

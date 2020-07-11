@@ -1,0 +1,16 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-iis-ingress
+  namespace: default
+spec:
+  selector: run == 'iis'
+  order: 100
+  types:
+    - Ingress
+  ingress:
+    - action: Allow
+      protocol: TCP
+      source:
+        selector: run != 'netshoot'
+---

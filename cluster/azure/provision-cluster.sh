@@ -59,7 +59,7 @@ az deployment group validate --resource-group $RESOURCE_GROUP \
   --parameters masterConfig=@$MASTER_CLOUD_CONFIG \
   --parameters workerConfig=@$WORKER_CLOUD_CONFIG \
   --parameters adminPublicKey="$SSH_PUB_KEY" \
-  --output none \
+  --output jsonc \
   --only-show-errors
 
 read -p "do you want to provision the infrastructure? [y/n]: " PROVISION
