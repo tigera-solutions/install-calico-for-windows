@@ -9,7 +9,7 @@ A quick way to provision and configure the unmanaged Kubernetes (k8s) cluster is
 Since the required version of Windows could differ for users, you can retrieve the desired `sku` using Azure CLI commands. Use `arm/parameters.json` file to set `windowsImageSKU` parameter.
 
 ```bash
-# get all SKUs for 2019 Windows images
+# get all SKUs for Windows 1909 images
 az vm image list -l westus2 -p MicrosoftWindowsServer -f WindowsServer --all --output table | grep '1909-'
 
 # a few SKUs to use

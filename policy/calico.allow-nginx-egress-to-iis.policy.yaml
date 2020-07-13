@@ -1,0 +1,16 @@
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: allow-nginx-egress
+  namespace: default
+spec:
+  selector: run == 'nginx'
+  order: 100
+  types:
+    - Egress
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        selector: run == 'iis'
+---

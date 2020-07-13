@@ -10,8 +10,9 @@ In this guide words `node` and `host` are interchangeable. If you are interested
 - use `kubeadm` to install k8s Ubuntu instances
 - [install Calico](https://docs.projectcalico.org/getting-started/kubernetes/quickstart)
 - prepare Windows nodes to be joined to k8s cluster
-- use `Calico for Windows` v3.12.1 to install Calico on Windows nodes and join the nodes to k8s cluster
+- use `Calico for Windows` v3.12.1 or newer to install Calico on Windows nodes and join the nodes to k8s cluster
 - test connectivity between Linux and Windows pods
+- use network policies to tighten security
 
 ## provision k8s cluster
 
@@ -31,7 +32,7 @@ curl -O https://docs.projectcalico.org/manifests/calico.yaml
 # if using BGP networking, set CALICO_IPV4POOL_IPIP to "Never" and then apply the manifest
 # if using VXLAN networking:
 ## - make sure CALICO_IPV4POOL_IPIP var is set to "Never" and CALICO_IPV4POOL_VXLAN var is set to "Always"
-# sed -i "" 's/CALICO_IPV4POOL_VXLAN/CALICO_IPV4POOL_IPIP/1' ./calico.yaml
+sed -i "" '/CALICO_IPV4POOL_VXLAN/{N;d;}' ./calico.yaml
 sed -i "" 's/CALICO_IPV4POOL_IPIP/CALICO_IPV4POOL_VXLAN/1' ./calico.yaml
 ## - replace calico_backend: "bird" with calico_backend: "vxlan"
 sed -i "" 's/calico_backend: "bird"/calico_backend: "vxlan"/1' ./calico.yaml
@@ -66,7 +67,7 @@ Redeploy `kube-proxy` and `coredns` if necessary.
 Copy Tigera Calico for Windows installation package to each Windows node. Use RDP session to login onto Windows node to setup Windows worker.
 
 ```bash
-# retrieve Windows instance password for RDP session
+# retrieve Windows instance password for RDP session in AWS
 SSH_KEY='./path/to/ssh_key'
 WIN_INST_ID='i-xxxx' # set Windows node Id
 aws ec2 get-password-data --instance-id $WIN_INST_ID --priv-launch-key $SSH_KEY --query 'PasswordData' --output text
@@ -183,8 +184,8 @@ There are main steps to install Calico on Windows host:
 
 >Once you start `C:\TigeraCalico\config.ps1` script, it is expected that the host may lose connectivity for a brief moment. Windows networking is sensitive to the changes the script makes. The connection usually is restored within a few seconds.
 
->The `kube-proxy` process may appear to be stuck while rendering the message `Waiting for HNS network Calico to be created...`. The script waits for a POD to come up on the Windows host in order to proceed with `kube-proxy` configuration. You can speed up this process by creating a container directly on the host, e.g. `kubectl --kubeconfig=c:\k\config run nano --rm -it --image mcr.microsoft.com/windows/nanoserver:latest --image-pull-policy=IfNotPresent --restart=Never --command cmd /c 'echo hello'`.
-When configuring multiple Windows hosts, you may need to use `nodeSelector` in order to pin a POD to a specific when configuring `kube-proxy` on the host.
+>The `kube-proxy` process may appear to be stuck while rendering the message `Waiting for HNS network Calico to be created...`. The script waits for a POD to come up on the Windows host in order to proceed with `kube-proxy` configuration. You can speed up this process by creating a container directly on the host, e.g. `c:\k\kubectl --kubeconfig=c:\k\config run nano --rm -it --image mcr.microsoft.com/windows/nanoserver:latest --image-pull-policy=IfNotPresent --restart=Never --command cmd /c 'echo hello'`.
+When configuring multiple Windows hosts, you can use `nodeSelector` in order to pin a POD to a specific when configuring `kube-proxy` on the host.
 
 ### configure Calico installation components
 
@@ -226,7 +227,8 @@ These settings must be configured in kubelet's configuration:
 - `--node-ip` - should be explicitly set to host's main network adapter's IP (e.g. `10.0.0.21`)
 - `--max-pods` ​should be set to, at most, the IPAM block size of the IP pool in use minus 4 (i.e. `2^(32-n) - 4`)
 
-Note, each node in AWS cluster should have `KubernetesCluster` and `kubernetes.io/cluster` tags defined. The `./cluster/aws/provision-cluster.sh` script sets this tag for each node.
+>Note, each node in AWS cluster should have `KubernetesCluster` and `kubernetes.io/cluster` tags defined. The `./cluster/aws/provision-cluster.sh` script sets this tag for each node.
+
 Calico files already provide a helper `C:\TigeraCalico\kubernetes\start-kubelet.ps1` script to start the `kubelet`. Open the file and adjust necessary parameters before launching the script.
 For more details refer to `C:\TigeraCalico\kubernetes\README.txt` file.
 
@@ -242,6 +244,7 @@ example configuration
 ```powershell
 # find '--hostname-override=' and set to correct host name (on AWS it should be set to node's internal DNS, e.g. 'ip-10-0-0-21.us-west-2.compute.internal')
 # find '--node-ip=' and set to host's main IP (e.g. '10.0.0.21')
+# in most cases you can leave $NodeIp blank to let the script auto-detect host's IP address
 $NodeIp = "10.0.0.21"
 $NodeName = "ip-10-0-0-21.us-west-2.compute.internal"
 $argList = @(`
@@ -346,6 +349,7 @@ Allow DNS access for all PODs in `default` namespace.
 ```bash
 # label kube-system namespace to target it in policies
 kubectl label ns kube-system dnshost=true
+kubectl get ns kube-system --show-labels
 # apply DNS policy that targets kube-system namespace
 kubectl apply -f policy/k8s.allow-dns.yaml
 # service names should be resolvable
@@ -373,11 +377,15 @@ Allow `netshoot` POD to access `iis` PODs, and then deploy Calico ingress policy
 kubectl apply -f policy/k8s.allow-netshoot-egress-to-iis.yaml
 # netshoot POD should be able to curl iis-svc
 kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
-# apply Calico policy to allow iis service access for any POD but netshoot
+# apply Calico policies to allow iis service access for any POD but netshoot
 # you'll need to use 'calicoctl' to apply the Calico policy: https://docs.projectcalico.org/getting-started/clis/calicoctl/install
-DATASTORE_TYPE=kubernetes calicoctl apply -f policy/calico.allow-iis-ingress.policy.yaml
+DATASTORE_TYPE=kubernetes calicoctl apply -f policy/calico.allow-iis-ingress-except-netshoot.policy.yaml
+DATASTORE_TYPE=kubernetes calicoctl apply -f policy/calico.allow-nginx-egress-to-iis.policy.yaml
 # now netshoot POD should not be able to curl iis-svc
 kubectl exec -t netshoot -- sh -c 'SVC=iis-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
+# but nginx POD should be able to access iis-svc
+NGINX_POD=$(kubectl get pod -l run=nginx -o jsonpath='{.items[*].metadata.name}')
+kubectl exec -t $NGINX_POD -- sh -c 'SVC=iis-svc; curl -m 5 -sI http://$SVC 2>/dev/null | grep -i http'
 ```
 
 ## troubleshooting

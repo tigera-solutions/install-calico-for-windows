@@ -4,7 +4,7 @@ metadata:
   name: allow-all-ingress-egress
 spec:
   selector: all()
-  order: 10
+  order: 1000
   types:
     - Egress
     - Ingress
