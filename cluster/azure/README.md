@@ -72,8 +72,16 @@ These instructions guide through a scripted configuration of k8s cluster. Make s
 
   ```bash
   # RDP into Windows host and download necessary assets
-  $SSH_KEY="$HOME\ssh_key"
-  $MASTER0_IP='xx.xx.xx.xx'
+  if ([string]::IsNullOrEmpty($SSH_KEY)){
+    Write-Warning "SSH key is not set"
+    $SSH_KEY = Read-Host "provide SSH key path"
+  }
+  if ([string]::IsNullOrEmpty($MASTER0_IP)){
+    Write-Warning "Master node IP is not set"
+    $MASTER0_IP = Read-Host "provide master node IP that hosts required assets (i.e. scripts, k8s Windows bits)"
+  }
+  echo "using SSH key: $SSK_KEY"
+  echo "using master node with IP: $MASTER0_IP"
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/tigera-calico-windows-v3.12.1.zip .\Downloads\
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/helper-prep-win-node.ps1 .\Downloads\
   scp.exe -o StrictHostKeyChecking=no -i $SSH_KEY azureuser@$MASTER0_IP`:~/helper-configure-calico.ps1 .\Downloads\
@@ -85,7 +93,11 @@ These instructions guide through a scripted configuration of k8s cluster. Make s
 - copy `helper-configure-calico.ps1` script into `$HOME\Downloads` path and execute it.
 
   ```bash
-  SSH_KEY="$HOME\ssh_key"
+  # exec these code block on Powershell on Windows host(s)
+  if ([string]::IsNullOrEmpty($SSH_KEY)){
+    Write-Warning "SSH key is not set"
+    $SSH_KEY = Read-Host "provide SSH key path"
+  }
   cd .\Downloads\
   # prepare Windows node
   # check if required featured already installed
@@ -93,6 +105,7 @@ These instructions guide through a scripted configuration of k8s cluster. Make s
     .\helper-prep-win-node.ps1
   }
   # configure Kubernetes components and install Calico
+  echo "using SSH key: $SSK_KEY"
   .\helper-configure-calico.ps1 -SshKeyPath $SSH_KEY
   ```
 
