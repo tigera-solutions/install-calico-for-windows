@@ -2,7 +2,11 @@
 
 In this guide words `node` and `host` are interchangeable. As of release of Calico v3.16.0 [windows support](https://docs.projectcalico.org/release-notes/#windows-support) was added to the open sourced edition of Calico and can now be used free of charge.
 
->Make sure to use the correct Windows version with build `18317+` if you want to use network policies on Windows. For [more details](https://docs.projectcalico.org/getting-started/windows-calico/limitations#service-clusterips-incompatible-with-selectorspod-ips-in-network-policy) refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
+>While this guide covers installation of the commercial version of Calico for Windows, for open sourced version of the installation guide refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
+
+## before you begin
+
+Make sure to use the correct Windows version with build `18317+` if you want to use network policies on Windows. For [more details](https://docs.projectcalico.org/getting-started/windows-calico/limitations#service-clusterips-incompatible-with-selectorspod-ips-in-network-policy) refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
 
 ## high level tasks to install Calico for Windows
 
