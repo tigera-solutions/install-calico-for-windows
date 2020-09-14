@@ -1,6 +1,8 @@
 # Getting up and running with Calico for Windows
 
-In this guide words `node` and `host` are interchangeable. If you are interested and want to test-drive `Calico for Windows`, please [reach out to us](https://www.tigera.io/contact/). We will be happy to share the trial version of the product with you.
+In this guide words `node` and `host` are interchangeable. As of release of Calico v3.16.0 [windows support](https://docs.projectcalico.org/release-notes/#windows-support) was added to the open sourced edition of Calico and can now be used free of charge.
+
+>Make sure to use the correct Windows version with build `18317+` if you want to use network policies on Windows. For [more details](https://docs.projectcalico.org/getting-started/windows-calico/limitations#service-clusterips-incompatible-with-selectorspod-ips-in-network-policy) refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
 
 ## high level tasks to install Calico for Windows
 
