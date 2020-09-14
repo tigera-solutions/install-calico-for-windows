@@ -2,7 +2,7 @@
 
 In this guide words `node` and `host` are interchangeable. As of release of Calico v3.16.0 [windows support](https://docs.projectcalico.org/release-notes/#windows-support) was added to the open sourced edition of Calico and can now be used free of charge.
 
->While this guide covers installation of the commercial version of Calico for Windows, for open sourced version of the installation guide refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
+>While the Calico installation and configuration instructions in this guide cover the commercial version of Calico for Windows, for open sourced version of the installation guide refer to [projectcalico documentation](https://docs.projectcalico.org/getting-started/windows-calico/).
 
 ## before you begin
 
