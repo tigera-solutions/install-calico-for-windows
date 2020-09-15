@@ -39,10 +39,11 @@ RESOURCE_GROUP=${1:-'calient'}
 LOCATION=${2:-'westus2'}
 PROJECT_NAME=${3:-"c4w"}
 SSH_PUB_KEY=${4:-"$(cat ~/.ssh/rsa_id.pub)"} # SSH public key
-ARM_TEMPLATE=${5:-'arm/deploy.json'}
-ARM_PARAMETERS=${6:-'arm/parameters.json'}
-MASTER_CLOUD_CONFIG=${7:-'config/ubuntu-master-config.yaml'}
-WORKER_CLOUD_CONFIG=${8:-'config/ubuntu-worker-config.yaml'}
+KUBE_VERSION=${5:-'v1.18.8'}
+ARM_TEMPLATE=${6:-'arm/deploy.json'}
+ARM_PARAMETERS=${7:-'arm/parameters.json'}
+MASTER_CLOUD_CONFIG=${8:-'config/ubuntu-master-config.yaml'}
+WORKER_CLOUD_CONFIG=${9:-'config/ubuntu-worker-config.yaml'}
 
 if [[ $(az group exists -n $RESOURCE_GROUP) != true ]]; then
   echo $GREEN "creating resource group '$RESOURCE_GROUP' in location '$LOCATION'" $NORMAL
@@ -81,7 +82,6 @@ az deployment group create --resource-group $RESOURCE_GROUP \
 ##########################################################################################################################################
 BASEDIR=$(dirname "$0")
 # helper scripts vars
-KUBE_VERSION="v1.18.5"
 KUBE_PACKAGE_NAME="kubernetes-node-windows-amd64.tar.gz"
 CALICO_PACKAGE_NAME="tigera-calico-windows-v3.12.1.zip"
 HELPER_PREFIX="helper"

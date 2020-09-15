@@ -68,6 +68,16 @@ nodeSelector:
 
 Redeploy `kube-proxy` and `coredns` if necessary.
 
+Enable `strictaffinity` for Calico networking since Windows networking does not support IP borrowing feature. The [calicoctl](https://docs.projectcalico.org/getting-started/clis/calicoctl/install) has to be used to tweak the setting.
+
+```bash
+# set StrictAffinity configuration setting
+calicoctl ipam configure --strictaffinity=true
+
+# verify the IPAM configuration
+calicoctl ipam show --show-configuration
+```
+
 ## configure Windows workers
 
 Copy Tigera Calico for Windows installation package to each Windows node. Use RDP session to login onto Windows node to setup Windows worker.

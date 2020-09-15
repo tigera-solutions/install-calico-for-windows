@@ -31,8 +31,9 @@ RESOURCE_GROUP='calico'
 LOCATION='westus2'
 PROJECT_NAME='c4w'
 SSH_PUB_KEY="$(cat $SSH_KEY_PATH)"
+KUBE_VERSION="1.18.8"
 # provision infrastructure
-./provision-cluster.sh $RESOURCE_GROUP $LOCATION $PROJECT_NAME $SSH_PUB_KEY
+./provision-cluster.sh $RESOURCE_GROUP $LOCATION $PROJECT_NAME $SSH_PUB_KEY $KUBE_VERSION
 ```
 
 ## using scripted configuration

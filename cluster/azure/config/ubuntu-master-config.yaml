@@ -105,6 +105,8 @@ runcmd:
   - systemctl start docker
   # install kube components
   - apt-get install -y kubelet kubeadm kubectl
+  # install specific version of kube components
+  # - apt-get install -y kubelet=1.18.8-00 kubeadm=1.18.8-00 kubectl
   - apt-mark hold kubelet kubeadm kubectl
   - systemctl enable kubelet && systemctl start kubelet
   # enable ecmp routes on Ubuntu 18.04+
