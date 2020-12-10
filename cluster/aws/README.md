@@ -106,13 +106,13 @@ kubectl create secret generic tigera-pull-secret \
     --type=kubernetes.io/dockerconfigjson -n tigera-operator
 ```
 
->Set Calico networking backend to either BGP or VXLAN. This is required as Windows platform doesn't support IPIP and only BGP or VXLAN networking backend. By default Calico networking is configured with IPIP, and therefore it needs to be changed to either BGP or VXLAN when using Windows workers.
+>Set Calico networking backend to either BGP or VXLAN. This is required as Windows platform doesn't support IPIP networking backend. By default Calico networking is configured with IPIP, therefore it needs to be changed to either BGP or VXLAN when using Windows workers.
 
 Download and configure Calico custom resources
 
->The `sed` command below works only with `GNU sed`. If you don't have or use non-GNU `sed`, manually edit `custom-resources.yaml` file.
+>The `sed` command below works only with `GNU sed`. If you don't use GNU version of `sed`, manually edit `custom-resources.yaml` file.
 
->The `cidr` block should match what was selected when the cluster was initialized. Default is `192.168.0.0l/16`.
+>The `cidr` block should match what was selected when the cluster was initialized. Default is `192.168.0.0l/16`. See all default cluster settings in `./cluster/aws/configs/1-kubeadm-init-config.yaml`.
 
 ```bash
 # Example to set networking backend to VXLAN
@@ -266,5 +266,16 @@ Verify that Windows workers were added to the cluster
 # get cluster Windows workers only
 kubectl get node -l "beta.kubernetes.io/os=windows"
 ```
+
+## troubleshooting
+
+The terraform users VM's `UserData` to supply instructions to prepare each node. In case the node fails to execute the `UserData` instructions, you can review the logs to see what could have caused the failure.
+
+- On Linux view `/var/log/cloud-init-output.log`
+- On Windows
+  - when using EC2Lanuch script view `C:\ProgramData\Amazon\EC2-Windows\Launch\Log\UserdataExecution.log`
+  - when using EC2Config script view `C:\Program Files\Amazon\Ec2ConfigService\Logs\Ec2Config.log`
+
+For more details on Windows `UserData` [head to AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2-windows-user-data.html#user-data-scripts).
 
 [Continue with deploying applications and testing connectivity](../../README.md#deploy-apps-and-test-connectivity).
