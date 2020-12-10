@@ -269,7 +269,7 @@ kubectl get node -l "beta.kubernetes.io/os=windows"
 
 ## troubleshooting
 
-The terraform users VM's `UserData` to supply instructions to prepare each node. In case the node fails to execute the `UserData` instructions, you can review the logs to see what could have caused the failure.
+The provisioning uses VM's `UserData` to supply instructions to prepare each node. In case the node fails to execute the `UserData` instructions, you can review the logs to see what could have caused the failure.
 
 - On Linux view `/var/log/cloud-init-output.log`
 - On Windows
