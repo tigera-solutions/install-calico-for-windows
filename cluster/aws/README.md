@@ -10,7 +10,6 @@ Before executing terraform commands, configure variables in `terraform.tfvars` f
 
 - `key_name` - name for EC2 KeyPair that will be created in AWS and used with EC2 instances
 - `aws_region` - AWS region to provision resources in. Default: `us-west-2`
-- `calico_windows_zip_path` - path to Calico for Windows zip file
 - `pull_secret_json_path` - path to JSON file containing Tigera pull secret
 - `calico_license_path` - path to Calico Enterprise license file
 - `resource_prefix` - prefix that will be added to all provisioned resources names. Default: `cali4win-`

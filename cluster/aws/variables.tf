@@ -7,9 +7,9 @@ variable "aws_region" {
   default     = "us-west-2"
 }
 
-variable "calico_windows_zip_path" {
-  description = "Path to Calico for Windows zip file"
-}
+# variable "calico_windows_zip_path" {
+#   description = "Path to Calico for Windows zip file"
+# }
 
 variable "pull_secret_json_path" {
   description = "Path to Tigera pull secret JSON file"
