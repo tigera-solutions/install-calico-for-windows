@@ -1,0 +1,22 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: security.allow-kube-dns
+spec:
+  # requires security tier to exist
+  tier: security
+  order: 1000
+  selector: all()
+  types:
+  - Egress
+  egress:
+  - action: Allow
+    protocol: UDP
+    source: {}
+    destination:
+      selector: "k8s-app == 'kube-dns'"
+      ports:
+      - '53'
+  - action: Pass
+    source: {}
+    destination: {}

@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: tigera-manager-external
+  namespace: tigera-manager
+spec:
+  type: LoadBalancer
+  selector:
+    k8s-app: tigera-manager
+  externalTrafficPolicy: Local
+  ports:
+  - port: 443
+    targetPort: 9443
+    protocol: TCP

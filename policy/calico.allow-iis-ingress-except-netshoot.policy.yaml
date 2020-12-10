@@ -13,4 +13,8 @@ spec:
       protocol: TCP
       source:
         selector: run != 'netshoot'
+    - action: Deny
+      protocol: TCP
+      source:
+        selector: run == 'netshoot'
 ---

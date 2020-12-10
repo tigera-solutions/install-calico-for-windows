@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: tigera-manager-np
+  name: tigera-manager-np
+  namespace: tigera-manager
+spec:
+  ports:
+  - port: 9443
+    name: https
+    protocol: TCP
+    nodePort: 31443
+  selector:
+    k8s-app: tigera-manager
+  type: NodePort

@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netshoot-egress-to-iis
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      run: netshoot
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          run: iis
+    ports:
+    - protocol: TCP
+      port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: iis-ingress-from-netshoot
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      run: iis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          run: netshoot
+    ports:
+    - protocol: TCP
+      port: 80
+---

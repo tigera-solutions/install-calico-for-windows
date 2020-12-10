@@ -10,6 +10,8 @@
 *--
 *.bak
 helper*
+**/.terraform
+**/*.tfstate*
 # ignore workdir files
 kubeconfig
 calico.yaml
