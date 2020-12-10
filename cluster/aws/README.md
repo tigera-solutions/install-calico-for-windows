@@ -1,6 +1,7 @@
 # Provision k8s environment in AWS
 
 These instructions provide configuration example of a k8s cluster using AWS infrastructure. This guide assumes that Calico CNI is used for networking. For other networking options refer to [official documentation](https://docs.tigera.io/getting-started/windows-calico/).
+If you're looking to use Windows containers on Amazon EKS clusters, check out these AWS blog posts: for [open source version](https://aws.amazon.com/blogs/containers/open-source-calico-for-windows-containers-on-amazon-eks/) and for [enterprise version](https://aws.amazon.com/blogs/containers/using-calico-on-amazon-eks-windows-containers/).
 
 ## provision cluster infrastructure with terraform
 
