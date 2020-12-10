@@ -1,0 +1,48 @@
+apiVersion: kubeadm.k8s.io/v1beta2
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  ttl: 24h0m0s
+  usages:
+  - signing
+  - authentication
+kind: InitConfiguration
+localAPIEndpoint:
+  bindPort: 6443
+nodeRegistration:
+  criSocket: /var/run/dockershim.sock
+  taints:
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/master
+  kubeletExtraArgs:
+    "feature-gates": "EphemeralContainers=true"
+    cloud-provider: aws
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+certificatesDir: /etc/kubernetes/pki
+clusterName: kubernetes
+dns:
+  type: CoreDNS
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: k8s.gcr.io
+kind: ClusterConfiguration
+kubernetesVersion: v1.20.0
+networking:
+  serviceSubnet: 10.96.0.0/12
+  podSubnet: 192.168.0.0/16
+  dnsDomain: cluster.local
+apiServer:
+  timeoutForControlPlane: 4m0s
+  extraArgs:
+    "feature-gates": "EphemeralContainers=true"
+    cloud-provider: aws
+scheduler:
+  extraArgs:
+    "feature-gates": "EphemeralContainers=true"
+controllerManager:
+  extraArgs:
+    "feature-gates": "EphemeralContainers=true"
+    cloud-provider: aws
+    configure-cloud-routes: "false"

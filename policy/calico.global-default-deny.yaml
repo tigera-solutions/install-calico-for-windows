@@ -1,0 +1,11 @@
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  order: 2000
+  # target only specified namespaces
+  selector: "projectcalico.org/namespace == 'default'"
+  types:
+  - Ingress
+  - Egress
