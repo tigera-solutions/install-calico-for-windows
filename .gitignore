@@ -10,7 +10,7 @@
 *--
 *.bak
 helper*
-**/.terraform
+**/.terraform*
 **/*.tfstate*
 # ignore workdir files
 kubeconfig
